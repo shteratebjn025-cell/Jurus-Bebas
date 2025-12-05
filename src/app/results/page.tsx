@@ -3,18 +3,44 @@
 import Link from "next/link";
 import { useFirestoreCollection } from "@/lib/hooks/use-firestore";
 import type { Result } from "@/lib/types";
+import { db } from "@/lib/firebase";
+import { doc, deleteDoc } from "firebase/firestore";
+import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import Loading from "@/app/loading";
-import { Trophy } from "lucide-react";
+import { Trophy, Trash2 } from "lucide-react";
 
 export default function ResultsPage() {
     const { data: results, loading } = useFirestoreCollection<Result>('results');
+    const { toast } = useToast();
 
     if (loading) {
         return <Loading />;
     }
+
+    const handleDeleteResult = async (resultId: string) => {
+        try {
+            await deleteDoc(doc(db, 'results', resultId));
+            toast({ title: "Sukses", description: "Data hasil berhasil dihapus." });
+        } catch (error) {
+            console.error("Error deleting document: ", error);
+            toast({ title: "Error", description: "Gagal menghapus data hasil.", variant: "destructive" });
+        }
+      };
 
     const sortedResults = results.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
 
@@ -40,12 +66,13 @@ export default function ResultsPage() {
                                 <TableHead>Kategori</TableHead>
                                 <TableHead className="text-right">Skor Akhir</TableHead>
                                 <TableHead className="text-center">Status</TableHead>
+                                <TableHead className="text-right">Aksi</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {sortedResults.length === 0 ? (
                                 <TableRow>
-                                    <TableCell colSpan={5} className="text-center">Belum ada hasil pertandingan.</TableCell>
+                                    <TableCell colSpan={6} className="text-center">Belum ada hasil pertandingan.</TableCell>
                                 </TableRow>
                             ) : (
                                 sortedResults.map((result) => (
@@ -60,6 +87,27 @@ export default function ResultsPage() {
                                         <TableCell className="text-right font-mono">{result.finalScore.toFixed(2)}</TableCell>
                                         <TableCell className="text-center">
                                             <Badge variant="secondary">Selesai</Badge>
+                                        </TableCell>
+                                        <TableCell className="text-right">
+                                        <AlertDialog>
+                                            <AlertDialogTrigger asChild>
+                                                <Button variant="ghost" size="icon" className="text-destructive">
+                                                    <Trash2 className="h-4 w-4" />
+                                                </Button>
+                                            </AlertDialogTrigger>
+                                            <AlertDialogContent>
+                                                <AlertDialogHeader>
+                                                <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
+                                                <AlertDialogDescription>
+                                                    Tindakan ini tidak dapat dibatalkan. Ini akan menghapus data hasil pertandingan ini secara permanen.
+                                                </AlertDialogDescription>
+                                                </AlertDialogHeader>
+                                                <AlertDialogFooter>
+                                                <AlertDialogCancel>Batal</AlertDialogCancel>
+                                                <AlertDialogAction onClick={() => handleDeleteResult(result.id as string)} className='bg-destructive hover:bg-destructive/90'>Hapus</AlertDialogAction>
+                                                </AlertDialogFooter>
+                                            </AlertDialogContent>
+                                        </AlertDialog>
                                         </TableCell>
                                     </TableRow>
                                 ))

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useFirestoreCollection } from '@/lib/hooks/use-firestore';
 import type { Participant } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, writeBatch, doc } from 'firebase/firestore';
+import { collection, addDoc, writeBatch, doc, deleteDoc } from 'firebase/firestore';
 
 import {
   Table,
@@ -16,6 +16,17 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+    AlertDialogTrigger,
+} from "@/components/ui/alert-dialog"
 import {
     Dialog,
     DialogContent,
@@ -31,7 +42,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../ui/card';
-import { PlusCircle, Upload, Download } from 'lucide-react';
+import { PlusCircle, Upload, Download, Trash2 } from 'lucide-react';
   
 
 export function ParticipantTable() {
@@ -100,6 +111,16 @@ export function ParticipantTable() {
         }
     };
     reader.readAsText(file);
+  };
+
+  const handleDeleteParticipant = async (participantId: string) => {
+    try {
+        await deleteDoc(doc(db, 'participants', participantId));
+        toast({ title: "Sukses", description: "Peserta berhasil dihapus." });
+    } catch (error) {
+        console.error("Error deleting document: ", error);
+        toast({ title: "Error", description: "Gagal menghapus peserta.", variant: "destructive" });
+    }
   };
 
   return (
@@ -172,6 +193,7 @@ export function ParticipantTable() {
                 <TableHead>Kontingen</TableHead>
                 <TableHead>Jenis Kelamin</TableHead>
                 <TableHead>Kategori Usia</TableHead>
+                <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
             </TableHeader>
             <TableBody>
@@ -182,12 +204,13 @@ export function ParticipantTable() {
                             <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                             <TableCell><Skeleton className="h-5 w-20" /></TableCell>
                             <TableCell><Skeleton className="h-5 w-16" /></TableCell>
+                            <TableCell><Skeleton className="h-8 w-8 ml-auto" /></TableCell>
                         </TableRow>
                     ))
                 ) : error ? (
-                    <TableRow><TableCell colSpan={4} className="text-center text-destructive">Gagal memuat data.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={5} className="text-center text-destructive">Gagal memuat data.</TableCell></TableRow>
                 ) : participants.length === 0 ? (
-                    <TableRow><TableCell colSpan={4} className="text-center">Belum ada peserta.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={5} className="text-center">Belum ada peserta.</TableCell></TableRow>
                 ) : (
                     participants.map((p) => (
                     <TableRow key={p.id}>
@@ -195,6 +218,27 @@ export function ParticipantTable() {
                         <TableCell>{p.contingent}</TableCell>
                         <TableCell>{p.gender}</TableCell>
                         <TableCell>{p.ageCategory}</TableCell>
+                        <TableCell className="text-right">
+                            <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                    <Button variant="ghost" size="icon" className="text-destructive">
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                    <AlertDialogTitle>Apakah Anda yakin?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Tindakan ini tidak dapat dibatalkan. Ini akan menghapus data peserta secara permanen.
+                                    </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                                    <AlertDialogAction onClick={() => handleDeleteParticipant(p.id)} className='bg-destructive hover:bg-destructive/90'>Hapus</AlertDialogAction>
+                                    </AlertDialogFooter>
+                                </AlertDialogContent>
+                            </AlertDialog>
+                        </TableCell>
                     </TableRow>
                     ))
                 )}
