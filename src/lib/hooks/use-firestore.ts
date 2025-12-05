@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from 'react';
-import { doc, onSnapshot, DocumentData } from 'firebase/firestore';
+import { doc, onSnapshot, DocumentData, collection, query, where, getDocs } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export function useFirestoreDocument<T>(path: string, id: string) {
@@ -10,7 +10,7 @@ export function useFirestoreDocument<T>(path: string, id: string) {
   const [error, setError] = useState<Error | null>(null);
 
   useEffect(() => {
-    if (!path || !id) {
+    if (!path || !id || !db) {
         setLoading(false);
         return;
     }
@@ -47,8 +47,7 @@ export function useFirestoreCollection<T>(path: string) {
     const [error, setError] = useState<Error | null>(null);
   
     useEffect(() => {
-      const { collection } = require("firebase/firestore");
-      if (!path) {
+      if (!path || !db) {
           setLoading(false);
           return;
       }

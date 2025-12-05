@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { doc, setDoc, getDocs, collection } from "firebase/firestore";
+import { doc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useFirestoreCollection } from "@/lib/hooks/use-firestore";
 import type { Participant, Match } from "@/lib/types";
