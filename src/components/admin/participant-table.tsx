@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useFirestoreCollection } from '@/lib/hooks/use-firestore';
 import type { Participant } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, writeBatch, doc, deleteDoc } from 'firebase/firestore';
+import { collection, addDoc, writeBatch, doc, deleteDoc, getDocs } from 'firebase/firestore';
 
 import {
   Table,
@@ -125,6 +125,27 @@ export function ParticipantTable() {
     }
   };
 
+  const handleDeleteAllParticipants = async () => {
+    if (!participants || participants.length === 0) {
+        toast({ title: "Info", description: "Tidak ada data peserta untuk dihapus." });
+        return;
+    }
+    
+    try {
+        const batch = writeBatch(db);
+        const participantsCollection = collection(db, "participants");
+        const participantsSnapshot = await getDocs(participantsCollection);
+        participantsSnapshot.forEach((doc) => {
+            batch.delete(doc.ref);
+        });
+        await batch.commit();
+        toast({ title: "Sukses", description: "Semua data peserta telah dihapus." });
+    } catch (error) {
+        console.error("Error deleting all participants: ", error);
+        toast({ title: "Error", description: "Gagal menghapus semua peserta.", variant: "destructive" });
+    }
+  };
+
   const sortedParticipants = participants ? [...participants].sort((a, b) => a.matchNumber - b.matchNumber) : [];
 
   return (
@@ -132,7 +153,7 @@ export function ParticipantTable() {
         <CardHeader>
             <CardTitle>Daftar Peserta</CardTitle>
             <CardDescription>Kelola data semua peserta pertandingan.</CardDescription>
-            <div className="flex items-center gap-2 pt-4">
+            <div className="flex flex-wrap items-center gap-2 pt-4">
                 <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                     <DialogTrigger asChild>
                         <Button><PlusCircle className="mr-2 h-4 w-4" /> Tambah Peserta</Button>
@@ -190,6 +211,24 @@ export function ParticipantTable() {
                 <a href="/template.csv" download>
                   <Button variant="outline"><Download className="mr-2 h-4 w-4"/> Template</Button>
                 </a>
+
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive"><Trash2 className="mr-2 h-4 w-4" /> Hapus Semua</Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                        <AlertDialogHeader>
+                            <AlertDialogTitle>Apakah Anda benar-benar yakin?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                                Tindakan ini tidak dapat dibatalkan. Ini akan menghapus **semua** data peserta secara permanen dari database.
+                            </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                            <AlertDialogCancel>Batal</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteAllParticipants} className='bg-destructive hover:bg-destructive/90'>Ya, Hapus Semua</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
             </div>
         </CardHeader>
         <CardContent>
@@ -245,7 +284,7 @@ export function ParticipantTable() {
                                     </AlertDialogHeader>
                                     <AlertDialogFooter>
                                     <AlertDialogCancel>Batal</AlertDialogCancel>
-                                    <AlertDialogAction onClick={() => handleDeleteParticipant(p.id)} className='bg-destructive hover:bg-destructive/90'>Hapus</AlertDialogAction>
+                                    <AlertDialogAction onClick={() => handleDeleteParticipant(p.id as string)} className='bg-destructive hover:bg-destructive/90'>Hapus</AlertDialogAction>
                                     </AlertDialogFooter>
                                 </AlertDialogContent>
                             </AlertDialog>
