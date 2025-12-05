@@ -263,7 +263,7 @@ export function ParticipantTable() {
                 ) : (
                     sortedParticipants.map((p) => (
                     <TableRow key={p.id}>
-                        <TableCell className="font-medium">{p.matchNumber}</TableCell>
+                        <TableCell className="font-medium">{p.matchNumber || '-'}</TableCell>
                         <TableCell className="font-medium">{p.name}</TableCell>
                         <TableCell>{p.contingent}</TableCell>
                         <TableCell>{p.gender}</TableCell>
