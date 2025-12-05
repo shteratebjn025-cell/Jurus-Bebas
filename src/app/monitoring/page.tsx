@@ -28,13 +28,16 @@ const BASE_SCORE = 38.1;
 
 export default function MonitoringPage() {
   const { data: match, loading } = useFirestoreDocument<Match>('match', 'current');
-  // We need participant details for ageCategory
-  const { data: participant } = useFirestoreDocument<Participant>('participants', match?.participantId || 'dummy');
+  // We need participant details for ageCategory, ensure we only fetch if participantId exists.
+  const { data: participant } = useFirestoreDocument<Participant>('participants', match?.participantId || 'dummy_id');
   const [isFinishing, setIsFinishing] = useState(false);
   const { toast } = useToast();
 
   const handleFinishMatch = async () => {
-    if (!match || !participant) return;
+    if (!match || !participant || !match.participantId) {
+        toast({ title: 'Error', description: 'Data pertandingan atau peserta tidak lengkap untuk menyimpan hasil.', variant: 'destructive' });
+        return;
+    }
     setIsFinishing(true);
 
     const judges = Object.keys(match.scores).filter(id => match.scores[id]?.finished);
