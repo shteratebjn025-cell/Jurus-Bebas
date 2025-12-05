@@ -26,7 +26,13 @@ export default function MonitoringPage() {
     if (!match) return;
     setIsFinishing(true);
 
-    const judges = Object.keys(match.scores).filter(id => id.startsWith('juri'));
+    const judges = Object.keys(match.scores).filter(id => match.scores[id]?.finished);
+    if (judges.length < match.numberOfJudges) {
+        toast({ title: 'Peringatan', description: 'Belum semua juri menyelesaikan penilaian.', variant: 'destructive' });
+        setIsFinishing(false);
+        return;
+    }
+
     const medianScores: { [key: string]: number } = {};
     const judgesTotals: { judgeId: string; total: number }[] = [];
 
@@ -120,6 +126,14 @@ export default function MonitoringPage() {
                         {judges.map(juriId => (
                             <TableCell key={juriId} className="text-center font-mono">
                                 {match.scores?.[juriId]?.stamina ?? '-'}
+                            </TableCell>
+                        ))}
+                    </TableRow>
+                    <TableRow className="bg-muted/50 font-bold">
+                        <TableCell>Status Selesai</TableCell>
+                        {judges.map(juriId => (
+                            <TableCell key={juriId} className="text-center font-mono text-xs">
+                                {match.scores?.[juriId]?.finished ? '✅' : '❌'}
                             </TableCell>
                         ))}
                     </TableRow>
