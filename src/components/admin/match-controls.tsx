@@ -28,8 +28,6 @@ const initialMatchState: Match = {
   medianScores: {},
 };
 
-const ADMIN_SETTINGS_KEY = 'silatscorer_admin_settings';
-
 export function MatchControls() {
   const { data: participants, loading: participantsLoading } = useFirestoreCollection<Participant>('participants');
   const { data: match, loading: matchLoading } = useFirestoreDocument<Match>('match', 'current');
@@ -38,39 +36,6 @@ export function MatchControls() {
   const [numberOfJudges, setNumberOfJudges] = useState<4 | 6>(6);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
-
-  useEffect(() => {
-    try {
-      const savedSettings = window.localStorage.getItem(ADMIN_SETTINGS_KEY);
-      if (savedSettings) {
-        const { participantId, judges } = JSON.parse(savedSettings);
-        if(participantId) setSelectedParticipantId(participantId);
-        if(judges) setNumberOfJudges(judges);
-      }
-    } catch (error) {
-      console.warn("Could not load admin settings from localStorage", error);
-    }
-  }, []);
-
-  const saveSettings = (participantId: string | null, judges: 4 | 6) => {
-    try {
-        const settings = JSON.stringify({ participantId, judges });
-        window.localStorage.setItem(ADMIN_SETTINGS_KEY, settings);
-    } catch (error) {
-        console.warn("Could not save admin settings to localStorage", error);
-    }
-  };
-
-  const handleParticipantChange = (participantId: string) => {
-    setSelectedParticipantId(participantId);
-    saveSettings(participantId, numberOfJudges);
-  };
-  
-  const handleJudgesChange = (val: string) => {
-    const newNumberOfJudges = val === '4' ? 4 : 6;
-    setNumberOfJudges(newNumberOfJudges);
-    saveSettings(selectedParticipantId, newNumberOfJudges);
-  };
 
   const handleStartMatch = async () => {
     if (!selectedParticipantId) {
@@ -130,7 +95,6 @@ export function MatchControls() {
       await setDoc(doc(db, "timer", "state"), { isRunning: false, startTime: null, duration: 180 });
   
       setSelectedParticipantId(nextParticipantId);
-      saveSettings(nextParticipantId, numberOfJudges);
   
       toast({ title: isNext ? "Partai Selanjutnya Siap" : "Papan Skor Direset", description: "Siap untuk pertandingan berikutnya." });
     } catch (error) {
@@ -163,7 +127,7 @@ export function MatchControls() {
           ) : (
             <Select 
               value={selectedParticipantId || ""} 
-              onValueChange={handleParticipantChange} 
+              onValueChange={setSelectedParticipantId} 
               disabled={isSubmitting || isMatchRunning}
             >
               <SelectTrigger>
@@ -181,7 +145,7 @@ export function MatchControls() {
             <Label>Jumlah Juri</Label>
             <RadioGroup 
                 value={String(numberOfJudges)} 
-                onValueChange={handleJudgesChange} 
+                onValueChange={(val) => setNumberOfJudges(val === '4' ? 4 : 6)} 
                 className="flex items-center gap-4" 
                 disabled={isSubmitting || isMatchRunning}
             >
