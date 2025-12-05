@@ -93,7 +93,7 @@ export default function TimerPage() {
                             id="duration" 
                             type="number" 
                             value={durationInput} 
-                            onChange={(e) => setDurationInput(parseInt(e.target.value))}
+                            onChange={(e) => setDurationInput(parseInt(e.target.value) || 0)}
                         />
                          <Button onClick={handleSet} variant="outline" className="w-full">Atur Durasi</Button>
                     </div>
