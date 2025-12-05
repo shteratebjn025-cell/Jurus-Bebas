@@ -21,7 +21,6 @@ const JURUS_NAMES = [
   "23.A", "23.B", "24.A", "24.B", "25.A", "25.B", "26", "27.A1", "27.A2", 
   "27.A3", "27.B", "28", "29.A", "29.B", "30", "31", "32", "33", "34"
 ];
-const TOTAL_JURUS = JURUS_NAMES.length;
 const STAMINA_SCORES = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
 
 export default function JuriPage() {
@@ -49,7 +48,7 @@ export default function JuriPage() {
   const handleScore = async (score: number) => {
     if (!match || !juriId || isScoringFinished) return;
 
-    const isStamina = currentStep > TOTAL_JURUS;
+    const isStamina = currentStep > JURUS_NAMES.length;
 
     if (isStamina) {
         setStaminaScore(score);
@@ -114,8 +113,8 @@ export default function JuriPage() {
     );
   }
 
-  const jurusProgress = currentStep > TOTAL_JURUS ? TOTAL_JURUS : currentStep - 1;
-  const progressPercentage = ((jurusProgress + (staminaScore !== undefined ? 1 : 0)) / (TOTAL_JURUS + 1)) * 100;
+  const jurusProgress = currentStep > JURUS_NAMES.length ? JURUS_NAMES.length : currentStep - 1;
+  const progressPercentage = ((jurusProgress + (staminaScore !== undefined ? 1 : 0)) / (JURUS_NAMES.length + 1)) * 100;
 
 
   return (
@@ -139,7 +138,7 @@ export default function JuriPage() {
           />
         </CardHeader>
         <CardContent>
-          {currentStep <= TOTAL_JURUS ? (
+          {currentStep <= JURUS_NAMES.length ? (
             // Jurus Scoring
             <div className="text-center space-y-6">
               <h3 className="font-headline text-5xl">Jurus {JURUS_NAMES[currentStep - 1]}</h3>
