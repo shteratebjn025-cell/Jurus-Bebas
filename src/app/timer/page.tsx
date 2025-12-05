@@ -11,6 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Play, Pause, RefreshCw, TimerIcon } from "lucide-react";
+import { TimerDisplay } from "@/components/timer-display";
 
 export default function TimerPage() {
     const { data: timerState, loading } = useFirestoreDocument<Timer>('timer', 'state');
@@ -87,12 +88,16 @@ export default function TimerPage() {
                     <CardDescription>Atur, mulai, dan hentikan waktu pertandingan.</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6">
+                    <div className="flex justify-center my-4">
+                        <TimerDisplay size="small" />
+                    </div>
+
                     <div className="space-y-2">
                         <Label htmlFor="duration">Durasi (detik)</Label>
                         <Input 
                             id="duration" 
                             type="number" 
-                            value={durationInput} 
+                            value={durationInput || 0} 
                             onChange={(e) => setDurationInput(parseInt(e.target.value) || 0)}
                         />
                          <Button onClick={handleSet} variant="outline" className="w-full">Atur Durasi</Button>

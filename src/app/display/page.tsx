@@ -1,44 +1,13 @@
 "use client";
 
-import { useState, useEffect } from 'react';
 import { useFirestoreDocument } from '@/lib/hooks/use-firestore';
-import type { Match, Timer } from '@/lib/types';
+import type { Match } from '@/lib/types';
 import Loading from '../loading';
 import { SilatScorerLogo } from '@/components/icons';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Trophy } from 'lucide-react';
+import { TimerDisplay } from '@/components/timer-display';
 
-function TimerDisplay() {
-    const { data: timerState } = useFirestoreDocument<Timer>('timer', 'state');
-    const [timeLeft, setTimeLeft] = useState(timerState?.duration || 180);
-
-    useEffect(() => {
-        if (timerState) {
-            if (timerState.isRunning && timerState.startTime) {
-                const updateTimer = () => {
-                    const now = Date.now();
-                    const elapsed = Math.floor((now - timerState.startTime!) / 1000);
-                    const remaining = timerState.duration - elapsed;
-                    setTimeLeft(remaining > 0 ? remaining : 0);
-                };
-                updateTimer();
-                const interval = setInterval(updateTimer, 1000);
-                return () => clearInterval(interval);
-            } else {
-                setTimeLeft(timerState.duration);
-            }
-        }
-    }, [timerState]);
-
-    const minutes = Math.floor(timeLeft / 60);
-    const seconds = timeLeft % 60;
-
-    return (
-        <div className="font-mono text-7xl md:text-9xl font-bold text-primary">
-            {String(minutes).padStart(2, '0')}:{String(seconds).padStart(2, '0')}
-        </div>
-    );
-}
 
 export default function DisplayPage() {
     const { data: match, loading } = useFirestoreDocument<Match>('match', 'current');
