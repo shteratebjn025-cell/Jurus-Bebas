@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { doc, setDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useFirestoreCollection, useFirestoreDocument } from "@/lib/hooks/use-firestore";
@@ -77,12 +77,9 @@ export function MatchControls() {
   
     if (isNext && match?.participantId && participants.length > 0) {
       const sortedParticipants = [...participants].sort((a, b) => a.matchNumber - b.matchNumber);
-      const currentParticipant = sortedParticipants.find(p => p.id === match.participantId);
-      if (currentParticipant) {
-        const currentIndex = sortedParticipants.findIndex(p => p.id === currentParticipant.id);
-        if (currentIndex !== -1 && currentIndex + 1 < sortedParticipants.length) {
-          nextParticipantId = sortedParticipants[currentIndex + 1].id;
-        }
+      const currentIndex = sortedParticipants.findIndex(p => p.id === match.participantId);
+      if (currentIndex !== -1 && currentIndex + 1 < sortedParticipants.length) {
+        nextParticipantId = sortedParticipants[currentIndex + 1].id;
       }
     }
   
@@ -135,7 +132,7 @@ export function MatchControls() {
               </SelectTrigger>
               <SelectContent>
                 {sortedParticipants.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>Partai {p.matchNumber}: {p.name} - {p.contingent}</SelectItem>
+                  <SelectItem key={p.id} value={p.id as string}>Partai {p.matchNumber}: {p.name} - {p.contingent}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
