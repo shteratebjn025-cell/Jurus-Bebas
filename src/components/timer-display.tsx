@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useFirestoreDocument } from '@/lib/hooks/use-firestore';
 import type { Timer } from '@/lib/types';
 import { cn } from '@/lib/utils';
@@ -12,22 +12,34 @@ interface TimerDisplayProps {
 export function TimerDisplay({ size = 'large' }: TimerDisplayProps) {
     const { data: timerState } = useFirestoreDocument<Timer>('timer', 'state');
     const [timeLeft, setTimeLeft] = useState(timerState?.duration || 180);
+    const animationFrameId = useRef<number>();
 
     useEffect(() => {
-        if (timerState) {
-            if (timerState.isRunning && timerState.startTime) {
-                const updateTimer = () => {
-                    const now = Date.now();
-                    const elapsed = Math.floor((now - timerState.startTime!) / 1000);
-                    const remaining = timerState.duration - elapsed;
-                    setTimeLeft(remaining > 0 ? remaining : 0);
-                };
-                updateTimer();
-                const interval = setInterval(updateTimer, 1000);
-                return () => clearInterval(interval);
-            } else {
-                setTimeLeft(timerState.duration);
-            }
+        if (timerState?.isRunning && timerState.startTime) {
+            const startTime = timerState.startTime;
+            const duration = timerState.duration;
+
+            const updateTimer = () => {
+                const now = Date.now();
+                const elapsed = Math.floor((now - startTime) / 1000);
+                const remaining = duration - elapsed;
+                
+                setTimeLeft(remaining > 0 ? remaining : 0);
+
+                if (remaining > 0) {
+                    animationFrameId.current = requestAnimationFrame(updateTimer);
+                }
+            };
+
+            animationFrameId.current = requestAnimationFrame(updateTimer);
+            
+            return () => {
+                if (animationFrameId.current) {
+                    cancelAnimationFrame(animationFrameId.current);
+                }
+            };
+        } else if (timerState) {
+            setTimeLeft(timerState.duration);
         }
     }, [timerState]);
 
