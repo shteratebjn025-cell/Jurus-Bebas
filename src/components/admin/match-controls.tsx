@@ -54,7 +54,6 @@ export function MatchControls() {
     if (match?.status === 'running' && match.participantId) {
       setSelectedParticipantId(match.participantId);
     } else if (match?.status === 'idle' || match?.status === 'finished') {
-      // Don't clear selection if user is about to start next match
       if (match?.status === 'idle') {
         setSelectedParticipantId(null);
       }
@@ -95,8 +94,6 @@ export function MatchControls() {
       };
       await setDoc(doc(db, "match", "current"), newMatchState);
       
-      await setDoc(doc(db, "timer", "state"), { isRunning: true, startTime: Date.now(), duration: 180 });
-
       toast({ title: "Pertandingan Dimulai!", description: `${participant.name} dari ${participant.contingent} sedang bertanding.` });
     } catch (error) {
       console.error("Error starting match:", error);
@@ -133,7 +130,6 @@ export function MatchControls() {
       }
 
       await setDoc(doc(db, "match", "current"), resetState);
-      await setDoc(doc(db, "timer", "state"), { isRunning: false, startTime: null, duration: 180 });
   
     } catch (error) {
       console.error("Error resetting match:", error);
