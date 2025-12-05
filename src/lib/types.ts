@@ -7,7 +7,7 @@ export interface Participant {
 }
 
 export interface JurusScore {
-  [jurusName: string]: number;
+  [jurusKey: string]: number;
 }
 
 export interface JudgeScore extends JurusScore {
@@ -27,6 +27,7 @@ export interface Match {
   status: 'idle' | 'running' | 'finished';
   scores: Scores;
   finalScore: number | null;
+  deviation: number | null;
   judgesTotals: { judgeId: string; total: number }[] | null;
   medianScores: { [key: string]: number };
 }

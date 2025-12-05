@@ -21,8 +21,10 @@ const JURUS_NAMES = [
   "11.A", "11.B", "12", "13", "14.A", "14.B", "15", "16.A1", "16.A2", "16.B",
   "17.A", "17.B", "18.A", "18.B", "19.A", "19.B", "20.A", "20.B", "21", "22",
   "23.A", "23.B", "24.A", "24.B", "25.A", "25.B", "26", "27.A1", "27.A2", 
-  "27.A3", "27.B", "28", "29.A", "29.B", "30", "31", "32", "33", "34"
+  "27.A3", "27.B", "28", "29.A", "29.B", "30", "31", "32", "33", "34", "35"
 ];
+
+const BASE_SCORE = 38.1;
 
 export default function MonitoringPage() {
   const { data: match, loading } = useFirestoreDocument<Match>('match', 'current');
@@ -42,7 +44,7 @@ export default function MonitoringPage() {
 
     const medianScores: { [key: string]: number } = {};
     const judgesTotals: { judgeId: string; total: number }[] = [];
-
+    
     // Calculate median for each jurus
     JURUS_NAMES.forEach((_, index) => {
         const jurusKey = `jurus_${index + 1}`;
@@ -58,7 +60,7 @@ export default function MonitoringPage() {
         .filter(key => key !== 'stamina')
         .reduce((sum, key) => sum + (medianScores[key] || 0), 0);
         
-    const finalScore = 39 + totalJurusScore + (medianScores['stamina'] || 0);
+    const finalScore = BASE_SCORE + totalJurusScore + (medianScores['stamina'] || 0);
 
     // Calculate total score for each judge
     judges.forEach(juriId => {
@@ -69,15 +71,21 @@ export default function MonitoringPage() {
                 total += scores[`jurus_${index + 1}`] || 0;
             });
             total += scores.stamina || 0;
-            judgesTotals.push({ judgeId: juriId, total: 39 + total });
+            judgesTotals.push({ judgeId: juriId, total: parseFloat((BASE_SCORE + total).toFixed(2)) });
         }
     });
+
+    // Calculate deviation
+    const allJudgeTotals = judgesTotals.map(j => j.total);
+    const deviation = allJudgeTotals.length > 0 ? Math.max(...allJudgeTotals) - Math.min(...allJudgeTotals) : 0;
+
 
     try {
         const matchRef = doc(db, "match", "current");
         await updateDoc(matchRef, {
             status: 'finished',
             finalScore: parseFloat(finalScore.toFixed(2)),
+            deviation: parseFloat(deviation.toFixed(2)),
             medianScores,
             judgesTotals,
         });

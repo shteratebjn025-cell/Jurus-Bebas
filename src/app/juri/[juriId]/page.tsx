@@ -19,7 +19,7 @@ const JURUS_NAMES = [
   "11.A", "11.B", "12", "13", "14.A", "14.B", "15", "16.A1", "16.A2", "16.B",
   "17.A", "17.B", "18.A", "18.B", "19.A", "19.B", "20.A", "20.B", "21", "22",
   "23.A", "23.B", "24.A", "24.B", "25.A", "25.B", "26", "27.A1", "27.A2", 
-  "27.A3", "27.B", "28", "29.A", "29.B", "30", "31", "32", "33", "34"
+  "27.A3", "27.B", "28", "29.A", "29.B", "30", "31", "32", "33", "34", "35"
 ];
 const STAMINA_SCORES = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
 
@@ -33,52 +33,66 @@ export default function JuriPage() {
   const [currentStep, setCurrentStep] = useState(1);
   const [staminaScore, setStaminaScore] = useState<number | undefined>(undefined);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const isScoringFinished = match?.scores?.[juriId]?.finished === true;
+  
+  // This state will track if the initial state has been set from Firestore
+  const [isInitialized, setIsInitialized] = useState(false);
+  const isScoringFinishedByThisJudge = match?.scores?.[juriId]?.finished === true;
 
   useEffect(() => {
-    // This effect now correctly synchronizes the current step based on Firestore data.
-    if (match?.status === 'running' && !isScoringFinished) {
-      const judgeScores = match.scores?.[juriId] || {};
-      const jurusKeys = Object.keys(judgeScores).filter(k => k.startsWith('jurus_'));
-      const lastScoredStep = jurusKeys.length > 0
-        ? Math.max(0, ...jurusKeys.map(k => parseInt(k.split('_')[1])))
-        : 0;
-      
-      setCurrentStep(lastScoredStep + 1);
+    // Only run this effect if match data is available and not yet initialized
+    if (match && !isInitialized) {
+        if (match.status === 'running') {
+            const judgeScores = match.scores?.[juriId] || {};
+            const jurusKeys = Object.keys(judgeScores).filter(k => k.startsWith('jurus_'));
+            
+            // Check if we are starting a new participant.
+            // This happens if the match status is running, but this judge has 'finished' flag from previous participant.
+            // We need to reset the judge's state.
+            const isNewParticipantForThisJudge = isScoringFinishedByThisJudge;
 
-      // Also, re-hydrate stamina score if it exists in Firestore
-      if (judgeScores.stamina !== undefined) {
-        setStaminaScore(judgeScores.stamina);
-      }
+            if (isNewParticipantForThisJudge) {
+                 // The admin has started a new match, but this judge's 'finished' flag hasn't been cleared yet.
+                 // We don't reset the view until the `scores` object for this judge is cleared by the admin's "start match" action.
+                 // The view is controlled by `isScoringFinishedByThisJudge`.
+            } else {
+                const lastScoredStep = jurusKeys.length > 0
+                    ? Math.max(0, ...jurusKeys.map(k => parseInt(k.split('_')[1])))
+                    : 0;
+                
+                setCurrentStep(lastScoredStep + 1);
+        
+                if (judgeScores.stamina !== undefined) {
+                    setStaminaScore(judgeScores.stamina);
+                }
+            }
+        }
+        // Mark as initialized to prevent this logic from re-running on every match update
+        setIsInitialized(true);
     }
 
-    // Reset for a new participant
-    if (match?.status === 'running' && isScoringFinished) {
-      // If the current match has a new participant, reset the UI for the judge.
-      // The logic to reset is handled by the `isScoringFinished` flag.
+    // Reset initialization when the participant changes
+    if (match?.status === 'running' && match.participantId && match.participantId !== localStorage.getItem('currentParticipantId')) {
+        setIsInitialized(false);
+        setCurrentStep(1);
+        setStaminaScore(undefined);
+        localStorage.setItem('currentParticipantId', match.participantId);
+    } else if (match?.status === 'idle') {
+        localStorage.removeItem('currentParticipantId');
     }
-  }, [match, juriId, isScoringFinished]);
+
+  }, [match, juriId, isInitialized, isScoringFinishedByThisJudge]);
 
 
   const handleScore = async (score: number) => {
-    if (!match || !juriId || isScoringFinished || isSubmitting) return;
+    if (!match || !juriId || isScoringFinishedByThisJudge || isSubmitting || currentStep > JURUS_NAMES.length) return;
 
-    const isStamina = currentStep > JURUS_NAMES.length;
-
-    if (isStamina) {
-        setStaminaScore(score);
-        return; // Just update local state for stamina until finish is clicked
-    }
-    
     setIsSubmitting(true);
     const field = `scores.${juriId}.jurus_${currentStep}`;
 
     try {
       const matchRef = doc(db, 'match', 'current');
       await updateDoc(matchRef, { [field]: score });
-      // We no longer optimistically update currentStep here. 
-      // The useEffect will handle it when Firestore data changes.
+      setCurrentStep(prev => prev + 1);
     } catch (error) {
       console.error('Failed to submit score:', error);
     } finally {
@@ -95,6 +109,7 @@ export default function JuriPage() {
           [`scores.${juriId}.stamina`]: staminaScore,
           [`scores.${juriId}.finished`]: true 
       });
+      // Don't change local state here, let the useEffect handle it via Firestore snapshot
     } catch (error) {
       console.error('Failed to finish scoring:', error);
     } finally {
@@ -118,7 +133,7 @@ export default function JuriPage() {
     );
   }
 
-  if (isScoringFinished) {
+  if (isScoringFinishedByThisJudge) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
         <Trophy className="h-24 w-24 text-accent mb-4" />

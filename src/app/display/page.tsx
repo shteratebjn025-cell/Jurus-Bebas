@@ -37,17 +37,24 @@ export default function DisplayPage() {
                         <CardTitle className="font-headline text-5xl">Hasil Akhir</CardTitle>
                         <CardDescription className="text-lg">{match.participantName} - {match.participantContingent}</CardDescription>
                     </CardHeader>
-                    <CardContent className="space-y-6">
-                        <div>
-                            <p className="text-lg text-muted-foreground">SKOR TOTAL</p>
-                            <p className="text-8xl font-bold text-primary">{match.finalScore?.toFixed(2)}</p>
+                    <CardContent className="space-y-6 p-6">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <p className="text-lg text-muted-foreground">SKOR TOTAL</p>
+                                <p className="text-8xl font-bold text-primary">{match.finalScore?.toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p className="text-lg text-muted-foreground">DEVIASI</p>
+                                <p className="text-8xl font-bold text-primary">{match.deviation?.toFixed(2)}</p>
+                            </div>
                         </div>
+
                         {match.judgesTotals && (
                             <div>
                                 <h3 className='font-headline text-2xl mb-2'>Rincian Skor Juri</h3>
                                 <div className='flex justify-center gap-4 flex-wrap'>
                                     {match.judgesTotals.map(({judgeId, total}) => (
-                                        <div key={judgeId} className='p-3 border rounded-md'>
+                                        <div key={judgeId} className='p-3 border rounded-md min-w-[100px]'>
                                             <p className='font-bold text-sm'>{judgeId.replace('juri', 'Juri ')}</p>
                                             <p className='font-mono text-2xl'>{total.toFixed(2)}</p>
                                         </div>
@@ -69,7 +76,7 @@ export default function DisplayPage() {
         "11.A", "11.B", "12", "13", "14.A", "14.B", "15", "16.A1", "16.A2", "16.B",
         "17.A", "17.B", "18.A", "18.B", "19.A", "19.B", "20.A", "20.B", "21", "22",
         "23.A", "23.B", "24.A", "24.B", "25.A", "25.B", "26", "27.A1", "27.A2", 
-        "27.A3", "27.B", "28", "29.A", "29.B", "30", "31", "32", "33", "34"
+        "27.A3", "27.B", "28", "29.A", "29.B", "30", "31", "32", "33", "34", "35"
       ];
 
     return (
@@ -102,7 +109,7 @@ export default function DisplayPage() {
                                             <div className="mt-2">
                                                 <p className="text-xs text-muted-foreground">Jurus Terakhir ({JURUS_NAMES[lastJurusIndex-1] || 'N/A'})</p>
                                                 <p className="font-mono text-3xl font-bold">
-                                                    {lastScoreValue}
+                                                    {typeof lastScoreValue === 'number' ? lastScoreValue.toFixed(1) : lastScoreValue}
                                                 </p>
                                             </div>
                                             <div className="mt-2">
