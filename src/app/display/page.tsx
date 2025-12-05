@@ -100,7 +100,7 @@ export default function DisplayPage() {
                                         <div key={juriId} className="border rounded-lg p-4 text-center">
                                             <p className="font-bold text-lg">{juriId.replace('juri', 'Juri ')}</p>
                                             <div className="mt-2">
-                                                <p className="text-xs text-muted-foreground">Jurus Terakhir</p>
+                                                <p className="text-xs text-muted-foreground">Jurus Terakhir ({JURUS_NAMES[lastJurusIndex-1] || 'N/A'})</p>
                                                 <p className="font-mono text-3xl font-bold">
                                                     {lastScoreValue}
                                                 </p>

@@ -32,21 +32,37 @@ export default function JuriPage() {
   );
   const [currentStep, setCurrentStep] = useState(1);
   const [staminaScore, setStaminaScore] = useState<number | undefined>(undefined);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const isScoringFinished = match?.scores?.[juriId]?.finished === true;
 
   useEffect(() => {
-    // Reset state when match changes to a new participant
-    if (match?.status === 'running') {
-      const currentJurusCount = Object.keys(match.scores?.[juriId] || {}).filter(k => k.startsWith('jurus_')).length;
-      setCurrentStep(currentJurusCount + 1);
-      setStaminaScore(match.scores?.[juriId]?.stamina);
+    // This effect now correctly synchronizes the current step based on Firestore data.
+    if (match?.status === 'running' && !isScoringFinished) {
+      const judgeScores = match.scores?.[juriId] || {};
+      const jurusKeys = Object.keys(judgeScores).filter(k => k.startsWith('jurus_'));
+      const lastScoredStep = jurusKeys.length > 0
+        ? Math.max(0, ...jurusKeys.map(k => parseInt(k.split('_')[1])))
+        : 0;
+      
+      setCurrentStep(lastScoredStep + 1);
+
+      // Also, re-hydrate stamina score if it exists in Firestore
+      if (judgeScores.stamina !== undefined) {
+        setStaminaScore(judgeScores.stamina);
+      }
     }
-  }, [match?.participantId, match?.status, juriId, match?.scores]);
+
+    // Reset for a new participant
+    if (match?.status === 'running' && isScoringFinished) {
+      // If the current match has a new participant, reset the UI for the judge.
+      // The logic to reset is handled by the `isScoringFinished` flag.
+    }
+  }, [match, juriId, isScoringFinished]);
 
 
   const handleScore = async (score: number) => {
-    if (!match || !juriId || isScoringFinished) return;
+    if (!match || !juriId || isScoringFinished || isSubmitting) return;
 
     const isStamina = currentStep > JURUS_NAMES.length;
 
@@ -55,20 +71,24 @@ export default function JuriPage() {
         return; // Just update local state for stamina until finish is clicked
     }
     
+    setIsSubmitting(true);
     const field = `scores.${juriId}.jurus_${currentStep}`;
 
     try {
       const matchRef = doc(db, 'match', 'current');
       await updateDoc(matchRef, { [field]: score });
-      setCurrentStep((prev) => prev + 1);
+      // We no longer optimistically update currentStep here. 
+      // The useEffect will handle it when Firestore data changes.
     } catch (error) {
       console.error('Failed to submit score:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleFinishScoring = async () => {
-    if (!match || !juriId || staminaScore === undefined) return;
-
+    if (!match || !juriId || staminaScore === undefined || isSubmitting) return;
+    setIsSubmitting(true);
     try {
       const matchRef = doc(db, 'match', 'current');
       await updateDoc(matchRef, { 
@@ -77,6 +97,8 @@ export default function JuriPage() {
       });
     } catch (error) {
       console.error('Failed to finish scoring:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -145,6 +167,7 @@ export default function JuriPage() {
                 <Button
                   onClick={() => handleScore(1)}
                   className="h-24 text-2xl bg-green-600 hover:bg-green-700"
+                  disabled={isSubmitting}
                 >
                   <ShieldCheck className="mr-2" /> Benar (1)
                 </Button>
@@ -152,6 +175,7 @@ export default function JuriPage() {
                   onClick={() => handleScore(0.5)}
                   variant="destructive"
                   className="h-24 text-2xl"
+                  disabled={isSubmitting}
                 >
                   <Gavel className="mr-2" /> Kurang Benar (0.5)
                 </Button>
@@ -172,6 +196,7 @@ export default function JuriPage() {
                         : 'outline'
                     }
                     className="h-16 text-xl"
+                    disabled={isSubmitting}
                   >
                     {score.toFixed(1)}
                   </Button>
@@ -181,9 +206,9 @@ export default function JuriPage() {
                 onClick={handleFinishScoring}
                 className="w-full h-20 text-2xl mt-4"
                 size="lg"
-                disabled={staminaScore === undefined}
+                disabled={staminaScore === undefined || isSubmitting}
               >
-                <CheckCircle className="mr-2" /> Selesai & Kirim Nilai Akhir
+                <CheckCircle className="mr-2" /> {isSubmitting ? 'Mengirim...' : 'Selesai & Kirim Nilai Akhir'}
               </Button>
             </div>
           )}
