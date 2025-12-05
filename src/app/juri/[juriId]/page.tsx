@@ -1,17 +1,17 @@
-"use client";
+'use client';
 
-import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
-import { doc, updateDoc } from "firebase/firestore";
-import { db } from "@/lib/firebase";
-import { useFirestoreDocument } from "@/lib/hooks/use-firestore";
-import type { Match } from "@/lib/types";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Progress } from "@/components/ui/progress";
-import Loading from "@/app/loading";
-import { SilatScorerLogo } from "@/components/icons";
-import { Gavel, ShieldCheck, Trophy, CheckCircle } from "lucide-react";
+import { useState, useEffect } from 'react';
+import { useParams } from 'next/navigation';
+import { doc, updateDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useFirestoreDocument } from '@/lib/hooks/use-firestore';
+import type { Match } from '@/lib/types';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Progress } from '@/components/ui/progress';
+import Loading from '@/app/loading';
+import { SilatScorerLogo } from '@/components/icons';
+import { Gavel, ShieldCheck, Trophy, CheckCircle } from 'lucide-react';
 
 const TOTAL_JURUS = 59;
 const STAMINA_SCORES = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
@@ -19,54 +19,52 @@ const STAMINA_SCORES = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
 export default function JuriPage() {
   const params = useParams();
   const juriId = params.juriId as string;
-  const { data: match, loading } = useFirestoreDocument<Match>("match", "current");
+  const { data: match, loading } = useFirestoreDocument<Match>(
+    'match',
+    'current'
+  );
   const [currentStep, setCurrentStep] = useState(1);
-  const [isStaminaScored, setIsStaminaScored] = useState(false);
 
   const isScoringFinished = match?.scores?.[juriId]?.finished === true;
+  const staminaScore = match?.scores?.[juriId]?.stamina;
 
   useEffect(() => {
     // Reset state when match changes to a new participant
-    setCurrentStep(1);
-    setIsStaminaScored(false);
-  }, [match?.participantId]);
-
-  useEffect(() => {
-    // Sync isStaminaScored state with firestore data
-    if (match?.scores?.[juriId]?.stamina !== undefined) {
-      setIsStaminaScored(true);
+    // This allows the judge to stay on their page for the next contestant
+    if (match?.status === 'running') {
+      setCurrentStep(1);
     }
-  }, [match?.scores, juriId]);
+  }, [match?.participantId, match?.status]);
 
 
   const handleScore = async (score: number) => {
     if (!match || !juriId || isScoringFinished) return;
 
     const isStamina = currentStep > TOTAL_JURUS;
-    const field = isStamina ? `scores.${juriId}.stamina` : `scores.${juriId}.jurus_${currentStep}`;
-    
-    try {
-        const matchRef = doc(db, "match", "current");
-        await updateDoc(matchRef, { [field]: score });
+    const field = isStamina
+      ? `scores.${juriId}.stamina`
+      : `scores.${juriId}.jurus_${currentStep}`;
 
-        if(isStamina) {
-          setIsStaminaScored(true);
-        } else {
-          setCurrentStep(prev => prev + 1);
-        }
+    try {
+      const matchRef = doc(db, 'match', 'current');
+      await updateDoc(matchRef, { [field]: score });
+
+      if (!isStamina) {
+        setCurrentStep((prev) => prev + 1);
+      }
     } catch (error) {
-        console.error("Failed to submit score:", error);
+      console.error('Failed to submit score:', error);
     }
   };
 
   const handleFinishScoring = async () => {
-    if (!match || !juriId || !isStaminaScored) return;
+    if (!match || !juriId || staminaScore === undefined) return;
 
     try {
-      const matchRef = doc(db, "match", "current");
+      const matchRef = doc(db, 'match', 'current');
       await updateDoc(matchRef, { [`scores.${juriId}.finished`]: true });
     } catch (error) {
-      console.error("Failed to finish scoring:", error);
+      console.error('Failed to finish scoring:', error);
     }
   };
 
@@ -79,34 +77,52 @@ export default function JuriPage() {
       <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
         <SilatScorerLogo className="h-24 w-24 text-primary mb-4" />
         <h1 className="font-headline text-3xl mb-2">Menunggu Pertandingan</h1>
-        <p className="text-muted-foreground">Panel penilaian akan aktif setelah admin memulai pertandingan.</p>
+        <p className="text-muted-foreground">
+          Panel penilaian akan aktif setelah admin memulai pertandingan.
+        </p>
       </div>
     );
   }
 
   if (isScoringFinished) {
     return (
-        <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
-            <Trophy className="h-24 w-24 text-accent mb-4" />
-            <h1 className="font-headline text-3xl mb-2">Penilaian Selesai</h1>
-            <p className="text-muted-foreground">Terima kasih, Anda telah menyelesaikan penilaian untuk peserta ini.</p>
-            <p className="text-muted-foreground mt-2">Menunggu peserta berikutnya...</p>
+      <div className="flex flex-col items-center justify-center min-h-screen text-center p-4">
+        <Trophy className="h-24 w-24 text-accent mb-4" />
+        <h1 className="font-headline text-3xl mb-2">Penilaian Selesai</h1>
+        <p className="text-muted-foreground">
+          Terima kasih, Anda telah menyelesaikan penilaian untuk{' '}
+          <span className="font-bold">{match.participantName}</span>.
+        </p>
+        <p className="text-muted-foreground mt-2 animate-pulse">
+          Menunggu peserta berikutnya...
+        </p>
       </div>
     );
   }
+
+  const jurusProgress = currentStep > TOTAL_JURUS ? TOTAL_JURUS : currentStep - 1;
+  const progressPercentage = ((jurusProgress + (staminaScore !== undefined ? 1 : 0)) / (TOTAL_JURUS + 1)) * 100;
+
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-gray-50">
       <Card className="w-full max-w-2xl">
         <CardHeader className="text-center">
-            <div className="flex items-center justify-between">
-                <div className="text-left">
-                    <p className="font-bold text-lg">{match.participantName}</p>
-                    <p className="text-sm text-muted-foreground">{match.participantContingent}</p>
-                </div>
-                <h2 className="font-bold text-lg text-primary">JURI {juriId.replace('juri','')}</h2>
+          <div className="flex items-center justify-between">
+            <div className="text-left">
+              <p className="font-bold text-lg">{match.participantName}</p>
+              <p className="text-sm text-muted-foreground">
+                {match.participantContingent}
+              </p>
             </div>
-            <Progress value={((currentStep -1 + (isStaminaScored ? 1 : 0)) / (TOTAL_JURUS + 1)) * 100} className="mt-4" />
+            <h2 className="font-bold text-lg text-primary">
+              JURI {juriId.replace('juri', '')}
+            </h2>
+          </div>
+          <Progress
+            value={progressPercentage}
+            className="mt-4"
+          />
         </CardHeader>
         <CardContent>
           {currentStep <= TOTAL_JURUS ? (
@@ -114,11 +130,18 @@ export default function JuriPage() {
             <div className="text-center space-y-6">
               <h3 className="font-headline text-5xl">Jurus ke-{currentStep}</h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <Button onClick={() => handleScore(1)} className="h-24 text-2xl bg-green-600 hover:bg-green-700">
-                    <ShieldCheck className="mr-2"/> Benar (1)
+                <Button
+                  onClick={() => handleScore(1)}
+                  className="h-24 text-2xl bg-green-600 hover:bg-green-700"
+                >
+                  <ShieldCheck className="mr-2" /> Benar (1)
                 </Button>
-                <Button onClick={() => handleScore(0.5)} variant="destructive" className="h-24 text-2xl">
-                    <Gavel className="mr-2"/> Kurang Benar (0.5)
+                <Button
+                  onClick={() => handleScore(0.5)}
+                  variant="destructive"
+                  className="h-24 text-2xl"
+                >
+                  <Gavel className="mr-2" /> Kurang Benar (0.5)
                 </Button>
               </div>
             </div>
@@ -131,19 +154,25 @@ export default function JuriPage() {
                   <Button
                     key={score}
                     onClick={() => handleScore(score)}
-                    variant={match.scores?.[juriId]?.stamina === score ? 'default' : 'outline'}
+                    variant={
+                      staminaScore === score
+                        ? 'default'
+                        : 'outline'
+                    }
                     className="h-16 text-xl"
-                    disabled={isStaminaScored}
                   >
                     {score.toFixed(1)}
                   </Button>
                 ))}
               </div>
-              {isStaminaScored && (
-                 <Button onClick={handleFinishScoring} className="w-full h-20 text-2xl mt-4" size="lg">
-                    <CheckCircle className="mr-2"/> Selesai & Kirim Nilai Akhir
-                </Button>
-              )}
+              <Button
+                onClick={handleFinishScoring}
+                className="w-full h-20 text-2xl mt-4"
+                size="lg"
+                disabled={staminaScore === undefined}
+              >
+                <CheckCircle className="mr-2" /> Selesai & Kirim Nilai Akhir
+              </Button>
             </div>
           )}
         </CardContent>
