@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Shield, Gavel, Tv, Monitor, Timer as TimerIcon } from "lucide-react";
+import { Shield, Gavel, Tv, Monitor, Timer as TimerIcon, Trophy } from "lucide-react";
 import { SilatScorerLogo } from "@/components/icons";
 
 const navItems = [
@@ -34,6 +34,12 @@ const navItems = [
     description: "Atur waktu hitung mundur.",
     icon: <TimerIcon className="size-8 text-primary" />,
   },
+  {
+    href: "/results",
+    title: "Hasil Pertandingan",
+    description: "Lihat riwayat skor pertandingan.",
+    icon: <Trophy className="size-8 text-primary" />,
+  }
 ];
 
 export default function Home() {

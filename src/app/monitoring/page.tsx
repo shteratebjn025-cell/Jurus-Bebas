@@ -2,9 +2,9 @@
 
 import { useState } from 'react';
 import { useFirestoreDocument } from '@/lib/hooks/use-firestore';
-import type { Match } from '@/lib/types';
+import type { Match, Participant, Result } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, addDoc, collection } from 'firebase/firestore';
 import { calculateMedian } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -28,11 +28,13 @@ const BASE_SCORE = 38.1;
 
 export default function MonitoringPage() {
   const { data: match, loading } = useFirestoreDocument<Match>('match', 'current');
+  // We need participant details for ageCategory
+  const { data: participant } = useFirestoreDocument<Participant>('participants', match?.participantId || 'dummy');
   const [isFinishing, setIsFinishing] = useState(false);
   const { toast } = useToast();
 
   const handleFinishMatch = async () => {
-    if (!match) return;
+    if (!match || !participant) return;
     setIsFinishing(true);
 
     const judges = Object.keys(match.scores).filter(id => match.scores[id]?.finished);
@@ -78,17 +80,36 @@ export default function MonitoringPage() {
     // Calculate deviation
     const allJudgeTotals = judgesTotals.map(j => j.total);
     const deviation = allJudgeTotals.length > 0 ? Math.max(...allJudgeTotals) - Math.min(...allJudgeTotals) : 0;
-
+    
+    const finalDeviation = parseFloat(deviation.toFixed(2));
+    const finalScoreFloat = parseFloat(finalScore.toFixed(2));
 
     try {
         const matchRef = doc(db, "match", "current");
         await updateDoc(matchRef, {
             status: 'finished',
-            finalScore: parseFloat(finalScore.toFixed(2)),
-            deviation: parseFloat(deviation.toFixed(2)),
+            finalScore: finalScoreFloat,
+            deviation: finalDeviation,
             medianScores,
             judgesTotals,
         });
+
+        const resultData: Result = {
+          participantId: match.participantId,
+          participantName: match.participantName,
+          participantContingent: match.participantContingent,
+          ageCategory: participant.ageCategory,
+          finalScore: finalScoreFloat,
+          deviation: finalDeviation,
+          judgesTotals: judgesTotals,
+          medianScores: medianScores,
+          numberOfJudges: match.numberOfJudges,
+          scores: match.scores,
+          createdAt: new Date(),
+        }
+
+        await addDoc(collection(db, 'results'), resultData);
+
         toast({ title: 'Pertandingan Selesai', description: `Skor akhir telah dihitung: ${finalScore.toFixed(2)}` });
     } catch (error) {
         console.error(error);
@@ -164,11 +185,11 @@ export default function MonitoringPage() {
                     <Terminal className="h-4 w-4" />
                     <AlertTitle>Konfirmasi Penyelesaian</AlertTitle>
                     <AlertDescription>
-                        Pastikan semua juri telah menyelesaikan penilaian sebelum menekan tombol "Selesaikan Pertandingan". Tindakan ini tidak dapat diurungkan.
+                        Pastikan semua juri telah menyelesaikan penilaian sebelum menekan tombol "Selesaikan Pertandingan". Tindakan ini akan menyimpan hasil secara permanen.
                     </AlertDescription>
                 </Alert>
                 <Button onClick={handleFinishMatch} disabled={isFinishing} className="w-full mt-4" size="lg">
-                    {isFinishing ? 'Menghitung...' : 'Selesaikan Pertandingan'}
+                    {isFinishing ? 'Menyimpan & Menghitung...' : 'Selesaikan Pertandingan & Simpan Hasil'}
                 </Button>
             </div>
           )}
@@ -176,7 +197,7 @@ export default function MonitoringPage() {
             <div className='mt-6 text-center'>
                 <h2 className='font-headline text-2xl'>Pertandingan Selesai</h2>
                 <p className='text-5xl font-bold text-primary my-2'>{match.finalScore?.toFixed(2)}</p>
-                <p className='text-muted-foreground'>Skor akhir telah dikalkulasi.</p>
+                <p className='text-muted-foreground'>Skor akhir telah dikalkulasi dan disimpan.</p>
             </div>
           )}
         </CardContent>
