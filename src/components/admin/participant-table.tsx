@@ -58,10 +58,11 @@ export function ParticipantTable() {
         contingent: formData.get('contingent') as string,
         gender: formData.get('gender') as 'Laki-laki' | 'Perempuan',
         ageCategory: formData.get('ageCategory') as 'Remaja' | 'Dewasa',
+        matchNumber: parseInt(formData.get('matchNumber') as string),
     };
 
-    if (!newParticipant.name || !newParticipant.contingent || !newParticipant.gender || !newParticipant.ageCategory) {
-        toast({ title: "Error", description: "Semua field harus diisi.", variant: "destructive" });
+    if (!newParticipant.name || !newParticipant.contingent || !newParticipant.gender || !newParticipant.ageCategory || isNaN(newParticipant.matchNumber)) {
+        toast({ title: "Error", description: "Semua field harus diisi dengan benar.", variant: "destructive" });
         return;
     }
 
@@ -89,14 +90,15 @@ export function ParticipantTable() {
         let participantsAdded = 0;
 
         lines.forEach(line => {
-            const [name, contingent, gender, ageCategory] = line.split(',').map(s => s.trim());
-            if (name && contingent && gender && ageCategory) {
+            const [name, contingent, gender, ageCategory, matchNumberStr] = line.split(',').map(s => s.trim());
+            if (name && contingent && gender && ageCategory && matchNumberStr) {
                 const docRef = doc(collection(db, 'participants'));
                 batch.set(docRef, { 
                   name, 
                   contingent, 
                   gender: gender as 'Laki-laki' | 'Perempuan', 
-                  ageCategory: ageCategory as 'Remaja' | 'Dewasa' 
+                  ageCategory: ageCategory as 'Remaja' | 'Dewasa',
+                  matchNumber: parseInt(matchNumberStr),
                 });
                 participantsAdded++;
             }
@@ -123,6 +125,8 @@ export function ParticipantTable() {
     }
   };
 
+  const sortedParticipants = participants ? [...participants].sort((a, b) => a.matchNumber - b.matchNumber) : [];
+
   return (
     <Card>
         <CardHeader>
@@ -146,6 +150,10 @@ export function ParticipantTable() {
                             <div>
                                 <Label htmlFor="contingent">Kontingen</Label>
                                 <Input id="contingent" name="contingent" required />
+                            </div>
+                            <div>
+                                <Label htmlFor="matchNumber">Nomor Partai</Label>
+                                <Input id="matchNumber" name="matchNumber" type="number" required />
                             </div>
                             <div>
                                 <Label htmlFor="gender">Jenis Kelamin</Label>
@@ -189,6 +197,7 @@ export function ParticipantTable() {
             <TableCaption>{loading ? "Memuat data peserta..." : "Daftar semua peserta terdaftar."}</TableCaption>
             <TableHeader>
                 <TableRow>
+                <TableHead>No. Partai</TableHead>
                 <TableHead>Nama</TableHead>
                 <TableHead>Kontingen</TableHead>
                 <TableHead>Jenis Kelamin</TableHead>
@@ -200,6 +209,7 @@ export function ParticipantTable() {
                 {loading ? (
                     Array.from({length: 5}).map((_, i) => (
                         <TableRow key={i}>
+                            <TableCell><Skeleton className="h-5 w-12" /></TableCell>
                             <TableCell><Skeleton className="h-5 w-32" /></TableCell>
                             <TableCell><Skeleton className="h-5 w-24" /></TableCell>
                             <TableCell><Skeleton className="h-5 w-20" /></TableCell>
@@ -208,12 +218,13 @@ export function ParticipantTable() {
                         </TableRow>
                     ))
                 ) : error ? (
-                    <TableRow><TableCell colSpan={5} className="text-center text-destructive">Gagal memuat data.</TableCell></TableRow>
-                ) : participants.length === 0 ? (
-                    <TableRow><TableCell colSpan={5} className="text-center">Belum ada peserta.</TableCell></TableRow>
+                    <TableRow><TableCell colSpan={6} className="text-center text-destructive">Gagal memuat data.</TableCell></TableRow>
+                ) : sortedParticipants.length === 0 ? (
+                    <TableRow><TableCell colSpan={6} className="text-center">Belum ada peserta.</TableCell></TableRow>
                 ) : (
-                    participants.map((p) => (
+                    sortedParticipants.map((p) => (
                     <TableRow key={p.id}>
+                        <TableCell className="font-medium">{p.matchNumber}</TableCell>
                         <TableCell className="font-medium">{p.name}</TableCell>
                         <TableCell>{p.contingent}</TableCell>
                         <TableCell>{p.gender}</TableCell>

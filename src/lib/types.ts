@@ -4,6 +4,7 @@ export interface Participant {
   contingent: string;
   gender: 'Laki-laki' | 'Perempuan';
   ageCategory: 'Remaja' | 'Dewasa';
+  matchNumber: number;
 }
 
 export interface JurusScore {

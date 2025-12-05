@@ -23,6 +23,7 @@ const initialMatchState: Match = {
   status: 'idle',
   scores: {},
   finalScore: null,
+  deviation: null,
   judgesTotals: null,
   medianScores: {},
 };
@@ -105,8 +106,21 @@ export function MatchControls() {
     }
   };
 
-  const handleResetOrNext = async () => {
+  const handleResetOrNext = async (isNext: boolean = false) => {
     setIsSubmitting(true);
+    let nextParticipantId: string | null = null;
+  
+    if (isNext && match?.participantId && participants.length > 0) {
+      const sortedParticipants = [...participants].sort((a, b) => a.matchNumber - b.matchNumber);
+      const currentParticipant = sortedParticipants.find(p => p.id === match.participantId);
+      if (currentParticipant) {
+        const currentIndex = sortedParticipants.findIndex(p => p.id === currentParticipant.id);
+        if (currentIndex !== -1 && currentIndex + 1 < sortedParticipants.length) {
+          nextParticipantId = sortedParticipants[currentIndex + 1].id;
+        }
+      }
+    }
+  
     try {
       const resetState: Match = {
         ...initialMatchState,
@@ -114,12 +128,11 @@ export function MatchControls() {
       };
       await setDoc(doc(db, "match", "current"), resetState);
       await setDoc(doc(db, "timer", "state"), { isRunning: false, startTime: null, duration: 180 });
-
-      // Clear only participant, not judges count
-      setSelectedParticipantId(null);
-      saveSettings(null, numberOfJudges);
-
-      toast({ title: "Papan Skor Direset", description: "Siap untuk pertandingan berikutnya." });
+  
+      setSelectedParticipantId(nextParticipantId);
+      saveSettings(nextParticipantId, numberOfJudges);
+  
+      toast({ title: isNext ? "Partai Selanjutnya Siap" : "Papan Skor Direset", description: "Siap untuk pertandingan berikutnya." });
     } catch (error) {
       console.error("Error resetting match:", error);
       toast({ title: "Error", description: "Gagal mereset pertandingan.", variant: "destructive" });
@@ -132,6 +145,7 @@ export function MatchControls() {
   const isMatchRunning = match?.status === 'running';
   const isMatchFinished = match?.status === 'finished';
 
+  const sortedParticipants = participants ? [...participants].sort((a, b) => a.matchNumber - b.matchNumber) : [];
 
   return (
     <Card>
@@ -156,8 +170,8 @@ export function MatchControls() {
                 <SelectValue placeholder="Pilih seorang peserta" />
               </SelectTrigger>
               <SelectContent>
-                {participants.map((p) => (
-                  <SelectItem key={p.id} value={p.id}>{p.name} - {p.contingent}</SelectItem>
+                {sortedParticipants.map((p) => (
+                  <SelectItem key={p.id} value={p.id}>Partai {p.matchNumber}: {p.name} - {p.contingent}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -192,7 +206,7 @@ export function MatchControls() {
 
         <div className="flex gap-4">
           {isMatchFinished ? (
-             <Button onClick={handleResetOrNext} disabled={isSubmitting} className="flex-1 bg-blue-600 hover:bg-blue-700">
+             <Button onClick={() => handleResetOrNext(true)} disabled={isSubmitting} className="flex-1 bg-blue-600 hover:bg-blue-700">
                 <SkipForward className="mr-2" /> Partai Selanjutnya
             </Button>
           ) : (
@@ -200,7 +214,7 @@ export function MatchControls() {
               <Button onClick={handleStartMatch} disabled={isLoading || isSubmitting || !selectedParticipantId || isMatchRunning} className="flex-1 bg-green-600 hover:bg-green-700">
                 <Play className="mr-2" /> {isSubmitting ? "Memulai..." : "Mulai Pertandingan"}
               </Button>
-              <Button onClick={handleResetOrNext} variant="destructive" disabled={isSubmitting || isLoading} className="flex-1">
+              <Button onClick={() => handleResetOrNext(false)} variant="destructive" disabled={isSubmitting || isLoading} className="flex-1">
                 <RefreshCw className="mr-2" /> {isSubmitting ? "Mereset..." : "Reset Pertandingan"}
               </Button>
             </>

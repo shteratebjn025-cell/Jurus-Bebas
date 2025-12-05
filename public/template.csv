@@ -1,3 +1,3 @@
-nama,kontingen,jenis_kelamin,kategori_usia
-John Doe,Kontingen A,Laki-laki,Dewasa
-Jane Smith,Kontingen B,Perempuan,Remaja
+name,contingent,gender,ageCategory,matchNumber
+John Doe,Kontingen A,Laki-laki,Dewasa,1
+Jane Smith,Kontingen B,Perempuan,Remaja,2
