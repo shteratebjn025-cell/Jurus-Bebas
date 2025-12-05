@@ -7,7 +7,7 @@ export interface Participant {
 }
 
 export interface JurusScore {
-  [key: `jurus_${number}`]: number;
+  [jurusName: string]: number;
 }
 
 export interface JudgeScore extends JurusScore {

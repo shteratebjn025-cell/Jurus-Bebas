@@ -63,6 +63,15 @@ export default function DisplayPage() {
 
     const judges = Array.from({ length: match.numberOfJudges }, (_, i) => `juri${i + 1}`);
 
+    const JURUS_NAMES = [
+        "1.A", "1.B", "2.A", "2.B", "3.A", "3.B", "4.A", "4.B", "4.C", "4.D", 
+        "5", "6", "7.A", "7.B", "8.A", "8.B", "8.C", "9", "10.A", "10.B",
+        "11.A", "11.B", "12", "13", "14.A", "14.B", "15", "16.A1", "16.A2", "16.B",
+        "17.A", "17.B", "18.A", "18.B", "19.A", "19.B", "20.A", "20.B", "21", "22",
+        "23.A", "23.B", "24.A", "24.B", "25.A", "25.B", "26", "27.A1", "27.A2", 
+        "27.A3", "27.B", "28", "29.A", "29.B", "30", "31", "32", "33", "34"
+      ];
+
     return (
         <div className="min-h-screen bg-background text-foreground p-4 md:p-8 flex flex-col">
             <header className="text-center mb-8">
@@ -81,23 +90,29 @@ export default function DisplayPage() {
                         </CardHeader>
                         <CardContent>
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                                {judges.map(juriId => (
-                                    <div key={juriId} className="border rounded-lg p-4 text-center">
-                                        <p className="font-bold text-lg">{juriId.replace('juri', 'Juri ')}</p>
-                                        <div className="mt-2">
-                                            <p className="text-xs text-muted-foreground">Jurus Terakhir</p>
-                                            <p className="font-mono text-3xl font-bold">
-                                                {Object.keys(match.scores?.[juriId] || {}).length > 0 ? Object.values(match.scores[juriId]).slice(-1)[0] : '-'}
-                                            </p>
+                                {judges.map(juriId => {
+                                    const judgeScores = match.scores?.[juriId] || {};
+                                    const jurusScores = Object.entries(judgeScores).filter(([key]) => JURUS_NAMES.includes(key));
+                                    const lastScore = jurusScores.length > 0 ? jurusScores[jurusScores.length - 1][1] : '-';
+
+                                    return (
+                                        <div key={juriId} className="border rounded-lg p-4 text-center">
+                                            <p className="font-bold text-lg">{juriId.replace('juri', 'Juri ')}</p>
+                                            <div className="mt-2">
+                                                <p className="text-xs text-muted-foreground">Jurus Terakhir</p>
+                                                <p className="font-mono text-3xl font-bold">
+                                                    {lastScore}
+                                                </p>
+                                            </div>
+                                            <div className="mt-2">
+                                                <p className="text-xs text-muted-foreground">Total Jurus</p>
+                                                <p className="font-mono text-lg">
+                                                    {jurusScores.length} / {JURUS_NAMES.length}
+                                                </p>
+                                            </div>
                                         </div>
-                                         <div className="mt-2">
-                                            <p className="text-xs text-muted-foreground">Total Jurus</p>
-                                            <p className="font-mono text-lg">
-                                                {Object.keys(match.scores?.[juriId] || {}).filter(k => k.startsWith('jurus')).length} / 59
-                                            </p>
-                                        </div>
-                                    </div>
-                                ))}
+                                    );
+                                })}
                             </div>
                         </CardContent>
                     </Card>

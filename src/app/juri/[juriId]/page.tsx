@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, FieldValue } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useFirestoreDocument } from '@/lib/hooks/use-firestore';
-import type { Match } from '@/lib/types';
+import type { Match, JurusScore } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -35,15 +35,15 @@ export default function JuriPage() {
   const [staminaScore, setStaminaScore] = useState<number | undefined>(undefined);
 
   const isScoringFinished = match?.scores?.[juriId]?.finished === true;
-  const savedStaminaScore = match?.scores?.[juriId]?.stamina;
 
   useEffect(() => {
     // Reset state when match changes to a new participant
     if (match?.status === 'running') {
-      setCurrentStep(1);
-      setStaminaScore(undefined);
+      const currentJurusCount = Object.keys(match.scores?.[juriId] || {}).filter(k => JURUS_NAMES.includes(k)).length;
+      setCurrentStep(currentJurusCount + 1);
+      setStaminaScore(match.scores?.[juriId]?.stamina);
     }
-  }, [match?.participantId, match?.status]);
+  }, [match?.participantId, match?.status, juriId, match?.scores]);
 
 
   const handleScore = async (score: number) => {
@@ -55,8 +55,9 @@ export default function JuriPage() {
         setStaminaScore(score);
         return; // Just update local state for stamina until finish is clicked
     }
-
-    const field = `scores.${juriId}.jurus_${currentStep}`;
+    
+    const jurusName = JURUS_NAMES[currentStep - 1];
+    const field = `scores.${juriId}.${jurusName}`;
 
     try {
       const matchRef = doc(db, 'match', 'current');
@@ -166,7 +167,7 @@ export default function JuriPage() {
                 {STAMINA_SCORES.map((score) => (
                   <Button
                     key={score}
-                    onClick={() => handleScore(score)}
+                    onClick={() => setStaminaScore(score)}
                     variant={
                       staminaScore === score
                         ? 'default'

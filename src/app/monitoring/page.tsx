@@ -23,7 +23,6 @@ const JURUS_NAMES = [
   "23.A", "23.B", "24.A", "24.B", "25.A", "25.B", "26", "27.A1", "27.A2", 
   "27.A3", "27.B", "28", "29.A", "29.B", "30", "31", "32", "33", "34"
 ];
-const TOTAL_JURUS = JURUS_NAMES.length;
 
 export default function MonitoringPage() {
   const { data: match, loading } = useFirestoreDocument<Match>('match', 'current');
@@ -45,17 +44,19 @@ export default function MonitoringPage() {
     const judgesTotals: { judgeId: string; total: number }[] = [];
 
     // Calculate median for each jurus
-    for (let i = 1; i <= TOTAL_JURUS; i++) {
-        const jurusKey = `jurus_${i}`;
-        const jurusScores = judges.map(juriId => match.scores[juriId]?.[jurusKey]).filter(s => s !== undefined) as number[];
-        medianScores[jurusKey] = calculateMedian(jurusScores);
-    }
+    JURUS_NAMES.forEach(jurusName => {
+        const jurusScores = judges.map(juriId => match.scores[juriId]?.[jurusName]).filter(s => s !== undefined) as number[];
+        medianScores[jurusName] = calculateMedian(jurusScores);
+    });
 
     // Calculate median for stamina
     const staminaScores = judges.map(juriId => match.scores[juriId]?.stamina).filter(s => s !== undefined) as number[];
     medianScores['stamina'] = calculateMedian(staminaScores);
 
-    const totalJurusScore = Object.values(medianScores).reduce((sum, score) => sum + (score || 0), 0) - (medianScores['stamina'] || 0);
+    const totalJurusScore = Object.keys(medianScores)
+        .filter(key => key !== 'stamina')
+        .reduce((sum, key) => sum + (medianScores[key] || 0), 0);
+        
     const finalScore = 39 + totalJurusScore + (medianScores['stamina'] || 0);
 
     // Calculate total score for each judge
@@ -63,9 +64,9 @@ export default function MonitoringPage() {
         const scores = match.scores[juriId];
         if (scores) {
             let total = 0;
-            for (let i = 1; i <= TOTAL_JURUS; i++) {
-                total += scores[`jurus_${i}`] || 0;
-            }
+            JURUS_NAMES.forEach(jurusName => {
+                total += scores[jurusName] || 0;
+            });
             total += scores.stamina || 0;
             judgesTotals.push({ judgeId: juriId, total: 39 + total });
         }
@@ -119,19 +120,16 @@ export default function MonitoringPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {JURUS_NAMES.map((jurusName, index) => {
-                        const jurusNum = index + 1;
-                        return (
-                            <TableRow key={jurusNum}>
-                                <TableCell>Jurus {jurusName}</TableCell>
-                                {judges.map(juriId => (
-                                    <TableCell key={juriId} className="text-center font-mono">
-                                        {match.scores?.[juriId]?.[`jurus_${jurusNum}`] ?? '-'}
-                                    </TableCell>
-                                ))}
-                            </TableRow>
-                        )
-                    })}
+                    {JURUS_NAMES.map((jurusName) => (
+                        <TableRow key={jurusName}>
+                            <TableCell>Jurus {jurusName}</TableCell>
+                            {judges.map(juriId => (
+                                <TableCell key={juriId} className="text-center font-mono">
+                                    {match.scores?.[juriId]?.[jurusName] ?? '-'}
+                                </TableCell>
+                            ))}
+                        </TableRow>
+                    ))}
                     <TableRow className="bg-muted font-bold">
                         <TableCell>Stamina</TableCell>
                         {judges.map(juriId => (
