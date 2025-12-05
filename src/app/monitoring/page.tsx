@@ -15,7 +15,15 @@ import { SilatScorerLogo } from '@/components/icons';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Terminal } from 'lucide-react';
 
-const TOTAL_JURUS = 59;
+const JURUS_NAMES = [
+  "1.A", "1.B", "2.A", "2.B", "3.A", "3.B", "4.A", "4.B", "4.C", "4.D", 
+  "5", "6", "7.A", "7.B", "8.A", "8.B", "8.C", "9", "10.A", "10.B",
+  "11.A", "11.B", "12", "13", "14.A", "14.B", "15", "16.A1", "16.A2", "16.B",
+  "17.A", "17.B", "18.A", "18.B", "19.A", "19.B", "20.A", "20.B", "21", "22",
+  "23.A", "23.B", "24.A", "24.B", "25.A", "25.B", "26", "27.A1", "27.A2", 
+  "27.A3", "27.B", "28", "29.A", "29.B", "30", "31", "32", "33", "34"
+];
+const TOTAL_JURUS = JURUS_NAMES.length;
 
 export default function MonitoringPage() {
   const { data: match, loading } = useFirestoreDocument<Match>('match', 'current');
@@ -111,16 +119,19 @@ export default function MonitoringPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {Array.from({ length: TOTAL_JURUS }, (_, i) => i + 1).map(jurusNum => (
-                        <TableRow key={jurusNum}>
-                            <TableCell>Jurus {jurusNum}</TableCell>
-                            {judges.map(juriId => (
-                                <TableCell key={juriId} className="text-center font-mono">
-                                    {match.scores?.[juriId]?.[`jurus_${jurusNum}`] ?? '-'}
-                                </TableCell>
-                            ))}
-                        </TableRow>
-                    ))}
+                    {JURUS_NAMES.map((jurusName, index) => {
+                        const jurusNum = index + 1;
+                        return (
+                            <TableRow key={jurusNum}>
+                                <TableCell>Jurus {jurusName}</TableCell>
+                                {judges.map(juriId => (
+                                    <TableCell key={juriId} className="text-center font-mono">
+                                        {match.scores?.[juriId]?.[`jurus_${jurusNum}`] ?? '-'}
+                                    </TableCell>
+                                ))}
+                            </TableRow>
+                        )
+                    })}
                     <TableRow className="bg-muted font-bold">
                         <TableCell>Stamina</TableCell>
                         {judges.map(juriId => (
