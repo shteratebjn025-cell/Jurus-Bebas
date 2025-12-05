@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useFirestoreCollection } from '@/lib/hooks/use-firestore';
 import type { Participant } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, writeBatch } from 'firebase/firestore';
+import { collection, addDoc, writeBatch, doc } from 'firebase/firestore';
 
 import {
   Table,
@@ -80,8 +80,8 @@ export function ParticipantTable() {
         lines.forEach(line => {
             const [name, contingent, gender, ageCategory] = line.split(',').map(s => s.trim());
             if (name && contingent && gender && ageCategory) {
-                const docRef = collection(db, 'participants');
-                batch.set(addDoc(docRef, {})._key.path.segments.reduce((acc, v, i) => i % 2 === 0 ? acc : {...acc, [v]: {}}, {}), { 
+                const docRef = doc(collection(db, 'participants'));
+                batch.set(docRef, { 
                   name, 
                   contingent, 
                   gender: gender as 'Laki-laki' | 'Perempuan', 

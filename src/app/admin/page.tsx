@@ -18,11 +18,11 @@ export default function AdminPage() {
         <TabsList className="grid w-full grid-cols-2">
           <TabsTrigger value="participants">
             <Users className="mr-2 h-4 w-4" />
-            Manajemen Peserta
+            Input Peserta
           </TabsTrigger>
           <TabsTrigger value="match">
             <Swords className="mr-2 h-4 w-4" />
-            Kontrol Pertandingan
+            Atur Pertandingan & Juri
           </TabsTrigger>
         </TabsList>
         <TabsContent value="participants">
