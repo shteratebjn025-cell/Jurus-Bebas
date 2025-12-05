@@ -92,8 +92,9 @@ export default function DisplayPage() {
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {judges.map(juriId => {
                                     const judgeScores = match.scores?.[juriId] || {};
-                                    const jurusScores = Object.entries(judgeScores).filter(([key]) => JURUS_NAMES.includes(key));
-                                    const lastScore = jurusScores.length > 0 ? jurusScores[jurusScores.length - 1][1] : '-';
+                                    const jurusKeys = Object.keys(judgeScores).filter(key => key.startsWith('jurus_'));
+                                    const lastJurusIndex = jurusKeys.length > 0 ? Math.max(...jurusKeys.map(k => parseInt(k.split('_')[1]))) : 0;
+                                    const lastScoreValue = lastJurusIndex > 0 ? judgeScores[`jurus_${lastJurusIndex}`] : '-';
 
                                     return (
                                         <div key={juriId} className="border rounded-lg p-4 text-center">
@@ -101,13 +102,13 @@ export default function DisplayPage() {
                                             <div className="mt-2">
                                                 <p className="text-xs text-muted-foreground">Jurus Terakhir</p>
                                                 <p className="font-mono text-3xl font-bold">
-                                                    {lastScore}
+                                                    {lastScoreValue}
                                                 </p>
                                             </div>
                                             <div className="mt-2">
                                                 <p className="text-xs text-muted-foreground">Total Jurus</p>
                                                 <p className="font-mono text-lg">
-                                                    {jurusScores.length} / {JURUS_NAMES.length}
+                                                    {jurusKeys.length} / {JURUS_NAMES.length}
                                                 </p>
                                             </div>
                                         </div>

@@ -44,9 +44,10 @@ export default function MonitoringPage() {
     const judgesTotals: { judgeId: string; total: number }[] = [];
 
     // Calculate median for each jurus
-    JURUS_NAMES.forEach(jurusName => {
-        const jurusScores = judges.map(juriId => match.scores[juriId]?.[jurusName]).filter(s => s !== undefined) as number[];
-        medianScores[jurusName] = calculateMedian(jurusScores);
+    JURUS_NAMES.forEach((_, index) => {
+        const jurusKey = `jurus_${index + 1}`;
+        const jurusScores = judges.map(juriId => match.scores[juriId]?.[jurusKey]).filter(s => s !== undefined) as number[];
+        medianScores[jurusKey] = calculateMedian(jurusScores);
     });
 
     // Calculate median for stamina
@@ -64,8 +65,8 @@ export default function MonitoringPage() {
         const scores = match.scores[juriId];
         if (scores) {
             let total = 0;
-            JURUS_NAMES.forEach(jurusName => {
-                total += scores[jurusName] || 0;
+            JURUS_NAMES.forEach((_, index) => {
+                total += scores[`jurus_${index + 1}`] || 0;
             });
             total += scores.stamina || 0;
             judgesTotals.push({ judgeId: juriId, total: 39 + total });
@@ -120,12 +121,12 @@ export default function MonitoringPage() {
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {JURUS_NAMES.map((jurusName) => (
+                    {JURUS_NAMES.map((jurusName, index) => (
                         <TableRow key={jurusName}>
                             <TableCell>Jurus {jurusName}</TableCell>
                             {judges.map(juriId => (
                                 <TableCell key={juriId} className="text-center font-mono">
-                                    {match.scores?.[juriId]?.[jurusName] ?? '-'}
+                                    {match.scores?.[juriId]?.[`jurus_${index + 1}`] ?? '-'}
                                 </TableCell>
                             ))}
                         </TableRow>

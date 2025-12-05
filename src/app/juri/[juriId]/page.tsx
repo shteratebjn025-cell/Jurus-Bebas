@@ -2,10 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
-import { doc, updateDoc, FieldValue } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useFirestoreDocument } from '@/lib/hooks/use-firestore';
-import type { Match, JurusScore } from '@/lib/types';
+import type { Match } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -38,7 +38,7 @@ export default function JuriPage() {
   useEffect(() => {
     // Reset state when match changes to a new participant
     if (match?.status === 'running') {
-      const currentJurusCount = Object.keys(match.scores?.[juriId] || {}).filter(k => JURUS_NAMES.includes(k)).length;
+      const currentJurusCount = Object.keys(match.scores?.[juriId] || {}).filter(k => k.startsWith('jurus_')).length;
       setCurrentStep(currentJurusCount + 1);
       setStaminaScore(match.scores?.[juriId]?.stamina);
     }
@@ -55,8 +55,7 @@ export default function JuriPage() {
         return; // Just update local state for stamina until finish is clicked
     }
     
-    const jurusName = JURUS_NAMES[currentStep - 1];
-    const field = `scores.${juriId}.${jurusName}`;
+    const field = `scores.${juriId}.jurus_${currentStep}`;
 
     try {
       const matchRef = doc(db, 'match', 'current');
