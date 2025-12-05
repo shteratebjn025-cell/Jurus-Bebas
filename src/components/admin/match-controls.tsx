@@ -49,6 +49,19 @@ export function MatchControls() {
     }
   }, []);
 
+  // Sync local selectedParticipantId with Firestore match data
+  useEffect(() => {
+    if (match?.status === 'running' && match.participantId) {
+      setSelectedParticipantId(match.participantId);
+    } else if (match?.status === 'idle' || match?.status === 'finished') {
+      // Don't clear selection if user is about to start next match
+      if (match?.status === 'idle') {
+        setSelectedParticipantId(null);
+      }
+    }
+  }, [match]);
+
+
   const handleNumberOfJudgesChange = (val: string) => {
     const num = val === '4' ? 4 : 6;
     setNumberOfJudges(num);
@@ -95,27 +108,33 @@ export function MatchControls() {
 
   const handleResetOrNext = async (isNext: boolean = false) => {
     setIsSubmitting(true);
-    let nextParticipantId: string | null = null;
-  
-    if (isNext && match?.participantId && participants.length > 0) {
-        const sortedParticipants = [...participants].sort((a, b) => (a.matchNumber || 0) - (b.matchNumber || 0));
-        const currentIndex = sortedParticipants.findIndex(p => p.id === match.participantId);
-        if (currentIndex !== -1 && currentIndex + 1 < sortedParticipants.length) {
-          nextParticipantId = sortedParticipants[currentIndex + 1].id;
-        }
-    }
   
     try {
       const resetState: Match = {
         ...initialMatchState,
         numberOfJudges: numberOfJudges, // Keep the number of judges
       };
+      
+      if (isNext && match?.participantId && participants.length > 0) {
+        const sortedParticipants = [...participants].sort((a, b) => (a.matchNumber || 0) - (b.matchNumber || 0));
+        const currentIndex = sortedParticipants.findIndex(p => p.id === match.participantId);
+        const nextParticipant = sortedParticipants[currentIndex + 1];
+        
+        if (nextParticipant?.id) {
+          setSelectedParticipantId(nextParticipant.id);
+          toast({ title: "Partai Selanjutnya Siap", description: "Peserta berikutnya telah dipilih." });
+        } else {
+          setSelectedParticipantId(null);
+          toast({ title: "Tidak Ada Partai Selanjutnya", description: "Ini adalah peserta terakhir." });
+        }
+      } else {
+        setSelectedParticipantId(null);
+        toast({ title: "Papan Skor Direset", description: "Siap untuk pertandingan baru." });
+      }
+
       await setDoc(doc(db, "match", "current"), resetState);
       await setDoc(doc(db, "timer", "state"), { isRunning: false, startTime: null, duration: 180 });
   
-      setSelectedParticipantId(nextParticipantId);
-  
-      toast({ title: isNext ? "Partai Selanjutnya Siap" : "Papan Skor Direset", description: isNext && nextParticipantId ? "Peserta berikutnya telah dipilih." : "Siap untuk pertandingan baru." });
     } catch (error) {
       console.error("Error resetting match:", error);
       toast({ title: "Error", description: "Gagal mereset pertandingan.", variant: "destructive" });
