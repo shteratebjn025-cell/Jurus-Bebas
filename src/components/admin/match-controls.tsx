@@ -72,9 +72,14 @@ export function MatchControls() {
   const handleResetMatch = async () => {
     setIsSubmitting(true);
     try {
-      await setDoc(doc(db, "match", "current"), initialMatchState);
+      // We only reset the match state, not the number of judges
+      const resetState: Match = {
+        ...initialMatchState,
+        numberOfJudges: numberOfJudges,
+      };
+      await setDoc(doc(db, "match", "current"), resetState);
       await setDoc(doc(db, "timer", "state"), { isRunning: false, startTime: null, duration: 180 });
-      toast({ title: "Pertandingan Direset", description: "Status pertandingan telah kembali ke idle." });
+      toast({ title: "Pertandingan Direset", description: "Papan skor telah dibersihkan." });
     } catch (error) {
       console.error("Error resetting match:", error);
       toast({ title: "Error", description: "Gagal mereset pertandingan.", variant: "destructive" });
@@ -109,7 +114,7 @@ export function MatchControls() {
         </div>
         <div className="space-y-2">
             <Label>Jumlah Juri</Label>
-            <RadioGroup defaultValue="6" onValueChange={(val) => setNumberOfJudges(val === '4' ? 4 : 6)} className="flex items-center gap-4" disabled={isSubmitting}>
+            <RadioGroup defaultValue={String(numberOfJudges)} onValueChange={(val) => setNumberOfJudges(val === '4' ? 4 : 6)} className="flex items-center gap-4" disabled={isSubmitting}>
                 <div className="flex items-center space-x-2">
                     <RadioGroupItem value="4" id="r2" />
                     <Label htmlFor="r2">4 Juri</Label>
@@ -125,7 +130,7 @@ export function MatchControls() {
           <Terminal className="h-4 w-4" />
           <AlertTitle>Perhatian!</AlertTitle>
           <AlertDescription>
-            Menekan "Mulai Pertandingan" akan menghapus data pertandingan sebelumnya. Gunakan "Reset" untuk membersihkan papan skor secara manual.
+            Menekan "Mulai Pertandingan" akan menghapus data pertandingan sebelumnya. Gunakan "Reset" untuk membersihkan papan skor secara manual untuk partai selanjutnya.
           </AlertDescription>
         </Alert>
 
