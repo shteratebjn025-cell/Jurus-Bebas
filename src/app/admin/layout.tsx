@@ -21,10 +21,10 @@ export default function AdminLayout({
       if (item === "true") {
         setIsVerified(true);
       } else {
-        router.replace("/admin/login");
+        router.replace("/login-admin");
       }
     } catch (error) {
-        router.replace("/admin/login");
+        router.replace("/login-admin");
     } finally {
         setIsLoading(false);
     }

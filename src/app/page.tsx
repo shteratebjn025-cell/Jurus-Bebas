@@ -5,7 +5,7 @@ import { SilatScorerLogo } from "@/components/icons";
 
 const navItems = [
   {
-    href: "/admin/login",
+    href: "/login-admin",
     title: "Admin Panel",
     description: "Kelola peserta dan pertandingan.",
     icon: <Shield className="size-8 text-primary" />,
