@@ -2,10 +2,10 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
-    // WARNING: These rules are insecure and are for development only.
-    // You must set up proper security rules before deploying to production.
+    // Allow access only for non-authenticated users for development.
+    // This should be updated with proper authentication rules for production.
     match /{document=**} {
-      allow read, write: if true;
+      allow read, write: if request.auth == null;
     }
   }
 }
