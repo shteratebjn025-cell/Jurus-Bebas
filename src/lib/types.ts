@@ -12,6 +12,7 @@ export interface JurusScore {
 
 export interface JudgeScore extends JurusScore {
   stamina: number;
+  finished: boolean;
 }
 
 export interface Scores {

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useParams } from "next/navigation";
-import { doc, setDoc, updateDoc } from "firebase/firestore";
+import { doc, updateDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useFirestoreDocument } from "@/lib/hooks/use-firestore";
 import type { Match } from "@/lib/types";
@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import Loading from "@/app/loading";
 import { SilatScorerLogo } from "@/components/icons";
-import { Gavel, ShieldCheck, Trophy } from "lucide-react";
+import { Gavel, ShieldCheck, Trophy, CheckCircle } from "lucide-react";
 
 const TOTAL_JURUS = 59;
 const STAMINA_SCORES = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
@@ -20,30 +20,53 @@ export default function JuriPage() {
   const params = useParams();
   const juriId = params.juriId as string;
   const { data: match, loading } = useFirestoreDocument<Match>("match", "current");
-  const [currentStep, setCurrentStep] = useState(1); // 1-59 for jurus, 60 for stamina
+  const [currentStep, setCurrentStep] = useState(1);
+  const [isStaminaScored, setIsStaminaScored] = useState(false);
 
-  const isScoringFinished =
-    match?.scores[juriId] &&
-    Object.keys(match.scores[juriId]).length === TOTAL_JURUS + 1;
+  const isScoringFinished = match?.scores?.[juriId]?.finished === true;
 
   useEffect(() => {
-    // Reset step when match changes
+    // Reset state when match changes to a new participant
     setCurrentStep(1);
+    setIsStaminaScored(false);
   }, [match?.participantId]);
+
+  useEffect(() => {
+    // Sync isStaminaScored state with firestore data
+    if (match?.scores?.[juriId]?.stamina !== undefined) {
+      setIsStaminaScored(true);
+    }
+  }, [match?.scores, juriId]);
+
 
   const handleScore = async (score: number) => {
     if (!match || !juriId || isScoringFinished) return;
 
-    const field = currentStep <= TOTAL_JURUS ? `scores.${juriId}.jurus_${currentStep}` : `scores.${juriId}.stamina`;
+    const isStamina = currentStep > TOTAL_JURUS;
+    const field = isStamina ? `scores.${juriId}.stamina` : `scores.${juriId}.jurus_${currentStep}`;
     
     try {
         const matchRef = doc(db, "match", "current");
         await updateDoc(matchRef, { [field]: score });
-        if(currentStep <= TOTAL_JURUS) {
-            setCurrentStep(prev => prev + 1);
+
+        if(isStamina) {
+          setIsStaminaScored(true);
+        } else {
+          setCurrentStep(prev => prev + 1);
         }
     } catch (error) {
         console.error("Failed to submit score:", error);
+    }
+  };
+
+  const handleFinishScoring = async () => {
+    if (!match || !juriId || !isStaminaScored) return;
+
+    try {
+      const matchRef = doc(db, "match", "current");
+      await updateDoc(matchRef, { [`scores.${juriId}.finished`]: true });
+    } catch (error) {
+      console.error("Failed to finish scoring:", error);
     }
   };
 
@@ -83,7 +106,7 @@ export default function JuriPage() {
                 </div>
                 <h2 className="font-bold text-lg text-primary">JURI {juriId.replace('juri','')}</h2>
             </div>
-            <Progress value={(currentStep / (TOTAL_JURUS + 1)) * 100} className="mt-4" />
+            <Progress value={((currentStep -1 + (isStaminaScored ? 1 : 0)) / (TOTAL_JURUS + 1)) * 100} className="mt-4" />
         </CardHeader>
         <CardContent>
           {currentStep <= TOTAL_JURUS ? (
@@ -100,7 +123,7 @@ export default function JuriPage() {
               </div>
             </div>
           ) : (
-            // Stamina Scoring
+            // Stamina & Finish Scoring
             <div className="text-center space-y-6">
               <h3 className="font-headline text-5xl">Penilaian Stamina</h3>
               <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
@@ -108,13 +131,19 @@ export default function JuriPage() {
                   <Button
                     key={score}
                     onClick={() => handleScore(score)}
-                    variant="outline"
+                    variant={match.scores?.[juriId]?.stamina === score ? 'default' : 'outline'}
                     className="h-16 text-xl"
+                    disabled={isStaminaScored}
                   >
                     {score.toFixed(1)}
                   </Button>
                 ))}
               </div>
+              {isStaminaScored && (
+                 <Button onClick={handleFinishScoring} className="w-full h-20 text-2xl mt-4" size="lg">
+                    <CheckCircle className="mr-2"/> Selesai & Kirim Nilai Akhir
+                </Button>
+              )}
             </div>
           )}
         </CardContent>
