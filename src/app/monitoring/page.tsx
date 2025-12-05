@@ -48,7 +48,11 @@ export default function MonitoringPage() {
     judges.forEach(juriId => {
         const scores = match.scores[juriId];
         if (scores) {
-            const total = Object.values(scores).reduce((acc, val) => acc + (val || 0), 0);
+            let total = 0;
+            for (let i = 1; i <= TOTAL_JURUS; i++) {
+                total += scores[`jurus_${i}`] || 0;
+            }
+            total += scores.stamina || 0;
             judgesTotals.push({ judgeId: juriId, total: 39 + total });
         }
     });

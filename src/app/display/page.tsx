@@ -80,7 +80,7 @@ export default function DisplayPage() {
                             <CardTitle className="font-headline text-3xl">Papan Skor Langsung</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {judges.map(juriId => (
                                     <div key={juriId} className="border rounded-lg p-4 text-center">
                                         <p className="font-bold text-lg">{juriId.replace('juri', 'Juri ')}</p>

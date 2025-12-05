@@ -7,16 +7,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Gavel } from "lucide-react";
 import { Label } from "@/components/ui/label";
+import { useFirestoreDocument } from "@/lib/hooks/use-firestore";
+import type { Match } from "@/lib/types";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function JuriLoginPage() {
   const router = useRouter();
   const [juriId, setJuriId] = useState("");
+  const { data: match, loading: matchLoading } = useFirestoreDocument<Match>('match', 'current');
 
   const handleLogin = () => {
     if (juriId) {
       router.push(`/juri/${juriId}`);
     }
   };
+
+  const numberOfJudges = match?.numberOfJudges || 6;
 
   return (
     <div className="flex items-center justify-center min-h-screen bg-background">
@@ -31,21 +37,25 @@ export default function JuriLoginPage() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <Label>Nomor Juri</Label>
-            <Select onValueChange={setJuriId}>
-              <SelectTrigger>
-                <SelectValue placeholder="Pilih nomor juri..." />
-              </SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 6 }, (_, i) => i + 1).map((num) => (
-                  <SelectItem key={num} value={`juri${num}`}>
-                    Juri {num}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            {matchLoading ? (
+                <Skeleton className="h-10 w-full" />
+            ) : (
+                <Select onValueChange={setJuriId} value={juriId}>
+                <SelectTrigger>
+                    <SelectValue placeholder="Pilih nomor juri..." />
+                </SelectTrigger>
+                <SelectContent>
+                    {Array.from({ length: numberOfJudges }, (_, i) => i + 1).map((num) => (
+                    <SelectItem key={num} value={`juri${num}`}>
+                        Juri {num}
+                    </SelectItem>
+                    ))}
+                </SelectContent>
+                </Select>
+            )}
           </div>
-          <Button onClick={handleLogin} className="w-full" disabled={!juriId}>
-            Masuk
+          <Button onClick={handleLogin} className="w-full" disabled={!juriId || matchLoading}>
+            {matchLoading ? 'Memuat...' : 'Masuk'}
           </Button>
         </CardContent>
       </Card>
