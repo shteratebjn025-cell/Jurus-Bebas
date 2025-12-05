@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -36,6 +37,27 @@ export function MatchControls() {
   const [numberOfJudges, setNumberOfJudges] = useState<4 | 6>(6);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const { toast } = useToast();
+
+  useEffect(() => {
+    try {
+      const savedJudges = window.localStorage.getItem('silatscorer_num_judges');
+      if (savedJudges && (savedJudges === '4' || savedJudges === '6')) {
+        setNumberOfJudges(parseInt(savedJudges) as 4 | 6);
+      }
+    } catch (error) {
+        console.error("Could not read from local storage:", error);
+    }
+  }, []);
+
+  const handleNumberOfJudgesChange = (val: string) => {
+    const num = val === '4' ? 4 : 6;
+    setNumberOfJudges(num);
+    try {
+        window.localStorage.setItem('silatscorer_num_judges', String(num));
+    } catch (error) {
+        console.error("Could not write to local storage:", error);
+    }
+  };
 
   const handleStartMatch = async () => {
     if (!selectedParticipantId) {
@@ -76,11 +98,11 @@ export function MatchControls() {
     let nextParticipantId: string | null = null;
   
     if (isNext && match?.participantId && participants.length > 0) {
-      const sortedParticipants = [...participants].sort((a, b) => a.matchNumber - b.matchNumber);
-      const currentIndex = sortedParticipants.findIndex(p => p.id === match.participantId);
-      if (currentIndex !== -1 && currentIndex + 1 < sortedParticipants.length) {
-        nextParticipantId = sortedParticipants[currentIndex + 1].id;
-      }
+        const sortedParticipants = [...participants].sort((a, b) => (a.matchNumber || 0) - (b.matchNumber || 0));
+        const currentIndex = sortedParticipants.findIndex(p => p.id === match.participantId);
+        if (currentIndex !== -1 && currentIndex + 1 < sortedParticipants.length) {
+          nextParticipantId = sortedParticipants[currentIndex + 1].id;
+        }
     }
   
     try {
@@ -93,7 +115,7 @@ export function MatchControls() {
   
       setSelectedParticipantId(nextParticipantId);
   
-      toast({ title: isNext ? "Partai Selanjutnya Siap" : "Papan Skor Direset", description: "Siap untuk pertandingan berikutnya." });
+      toast({ title: isNext ? "Partai Selanjutnya Siap" : "Papan Skor Direset", description: isNext && nextParticipantId ? "Peserta berikutnya telah dipilih." : "Siap untuk pertandingan baru." });
     } catch (error) {
       console.error("Error resetting match:", error);
       toast({ title: "Error", description: "Gagal mereset pertandingan.", variant: "destructive" });
@@ -106,7 +128,7 @@ export function MatchControls() {
   const isMatchRunning = match?.status === 'running';
   const isMatchFinished = match?.status === 'finished';
 
-  const sortedParticipants = participants ? [...participants].sort((a, b) => a.matchNumber - b.matchNumber) : [];
+  const sortedParticipants = participants ? [...participants].sort((a, b) => (a.matchNumber || 0) - (b.matchNumber || 0)) : [];
 
   return (
     <Card>
@@ -142,7 +164,7 @@ export function MatchControls() {
             <Label>Jumlah Juri</Label>
             <RadioGroup 
                 value={String(numberOfJudges)} 
-                onValueChange={(val) => setNumberOfJudges(val === '4' ? 4 : 6)} 
+                onValueChange={handleNumberOfJudgesChange}
                 className="flex items-center gap-4" 
                 disabled={isSubmitting || isMatchRunning}
             >
