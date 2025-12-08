@@ -51,13 +51,8 @@ export function MatchControls() {
 
   // Sync local selectedParticipantId with Firestore match data
   useEffect(() => {
-    if (match?.status === 'running' && match.participantId) {
-      setSelectedParticipantId(match.participantId);
-    } else if (match?.status === 'idle' || match?.status === 'finished') {
-      // If the match is finished, keep the participant selected to show context for "Next Match"
-      if (match?.status === 'idle') {
-        setSelectedParticipantId(null);
-      }
+    if (match) {
+        setSelectedParticipantId(match.participantId);
     }
   }, [match]);
 
@@ -123,14 +118,10 @@ export function MatchControls() {
           numberOfJudges: numberOfJudges,
           status: 'idle', // Ready but not running yet
         };
-        setSelectedParticipantId(nextParticipant.id);
         toastMessage = { title: "Partai Selanjutnya Siap", description: `Peserta berikutnya: ${nextParticipant.name}. Tekan "Mulai" untuk bertanding.` };
       } else {
-        setSelectedParticipantId(null);
         toastMessage = { title: "Kompetisi Selesai", description: "Ini adalah peserta terakhir." };
       }
-    } else {
-       setSelectedParticipantId(null);
     }
   
     try {
