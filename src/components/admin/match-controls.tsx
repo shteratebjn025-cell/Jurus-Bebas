@@ -54,6 +54,7 @@ export function MatchControls() {
     if (match?.status === 'running' && match.participantId) {
       setSelectedParticipantId(match.participantId);
     } else if (match?.status === 'idle' || match?.status === 'finished') {
+      // If the match is finished, keep the participant selected to show context for "Next Match"
       if (match?.status === 'idle') {
         setSelectedParticipantId(null);
       }
@@ -105,35 +106,39 @@ export function MatchControls() {
 
   const handleResetOrNext = async (isNext: boolean = false) => {
     setIsSubmitting(true);
-  
-    try {
-      const resetState: Match = {
-        ...initialMatchState,
-        numberOfJudges: numberOfJudges, // Keep the number of judges
-      };
+    let nextMatchState: Match = { ...initialMatchState, numberOfJudges: numberOfJudges };
+    let toastMessage = { title: "Papan Skor Direset", description: "Siap untuk pertandingan baru." };
+
+    if (isNext && match?.participantId && participants.length > 0) {
+      const sortedParticipants = [...participants].sort((a, b) => (a.matchNumber || 0) - (b.matchNumber || 0));
+      const currentIndex = sortedParticipants.findIndex(p => p.id === match.participantId);
+      const nextParticipant = sortedParticipants[currentIndex + 1];
       
-      if (isNext && match?.participantId && participants.length > 0) {
-        const sortedParticipants = [...participants].sort((a, b) => (a.matchNumber || 0) - (b.matchNumber || 0));
-        const currentIndex = sortedParticipants.findIndex(p => p.id === match.participantId);
-        const nextParticipant = sortedParticipants[currentIndex + 1];
-        
-        if (nextParticipant?.id) {
-          setSelectedParticipantId(nextParticipant.id);
-          toast({ title: "Partai Selanjutnya Siap", description: "Peserta berikutnya telah dipilih." });
-        } else {
-          setSelectedParticipantId(null);
-          toast({ title: "Tidak Ada Partai Selanjutnya", description: "Ini adalah peserta terakhir." });
-        }
+      if (nextParticipant) {
+        nextMatchState = {
+          ...initialMatchState,
+          participantId: nextParticipant.id,
+          participantName: nextParticipant.name,
+          participantContingent: nextParticipant.contingent,
+          numberOfJudges: numberOfJudges,
+          status: 'idle', // Ready but not running yet
+        };
+        setSelectedParticipantId(nextParticipant.id);
+        toastMessage = { title: "Partai Selanjutnya Siap", description: `Peserta berikutnya: ${nextParticipant.name}. Tekan "Mulai" untuk bertanding.` };
       } else {
         setSelectedParticipantId(null);
-        toast({ title: "Papan Skor Direset", description: "Siap untuk pertandingan baru." });
+        toastMessage = { title: "Kompetisi Selesai", description: "Ini adalah peserta terakhir." };
       }
-
-      await setDoc(doc(db, "match", "current"), resetState);
+    } else {
+       setSelectedParticipantId(null);
+    }
   
+    try {
+      await setDoc(doc(db, "match", "current"), nextMatchState);
+      toast(toastMessage);
     } catch (error) {
-      console.error("Error resetting match:", error);
-      toast({ title: "Error", description: "Gagal mereset pertandingan.", variant: "destructive" });
+      console.error("Error setting next/reset match:", error);
+      toast({ title: "Error", description: "Gagal memproses tindakan.", variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
@@ -202,21 +207,20 @@ export function MatchControls() {
           </AlertDescription>
         </Alert>
 
-        <div className="flex gap-4">
-          {isMatchFinished ? (
-             <Button onClick={() => handleResetOrNext(true)} disabled={isSubmitting} className="flex-1 bg-blue-600 hover:bg-blue-700">
-                <SkipForward className="mr-2" /> Partai Selanjutnya
-            </Button>
-          ) : (
-            <>
-              <Button onClick={handleStartMatch} disabled={isLoading || isSubmitting || !selectedParticipantId || isMatchRunning} className="flex-1 bg-green-600 hover:bg-green-700">
+        <div className="flex flex-col gap-4">
+           <div className="flex gap-4">
+              <Button onClick={handleStartMatch} disabled={isLoading || isSubmitting || !selectedParticipantId || isMatchRunning || isMatchFinished} className="flex-1 bg-green-600 hover:bg-green-700">
                 <Play className="mr-2" /> {isSubmitting ? "Memulai..." : "Mulai Pertandingan"}
               </Button>
               <Button onClick={() => handleResetOrNext(false)} variant="destructive" disabled={isSubmitting || isLoading} className="flex-1">
-                <RefreshCw className="mr-2" /> {isSubmitting ? "Mereset..." : "Reset Pertandingan"}
+                <RefreshCw className="mr-2" /> {isSubmitting ? "Mereset..." : "Reset Papan Skor"}
               </Button>
-            </>
-          )}
+            </div>
+            {isMatchFinished && (
+                 <Button onClick={() => handleResetOrNext(true)} disabled={isSubmitting} className="w-full bg-blue-600 hover:bg-blue-700">
+                    <SkipForward className="mr-2" /> Siapkan Partai Selanjutnya
+                </Button>
+            )}
         </div>
       </CardContent>
     </Card>
