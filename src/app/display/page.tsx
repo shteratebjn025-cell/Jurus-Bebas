@@ -70,14 +70,7 @@ export default function DisplayPage() {
 
     const judges = Array.from({ length: match.numberOfJudges }, (_, i) => `juri${i + 1}`);
 
-    const JURUS_NAMES = [
-        "1.A", "1.B", "2.A", "2.B", "3.A", "3.B", "4.A", "4.B", "4.C", "4.D", 
-        "5", "6", "7.A", "7.B", "8.A", "8.B", "8.C", "9", "10.A", "10.B",
-        "11.A", "11.B", "12", "13", "14.A", "14.B", "15", "16.A1", "16.A2", "16.B",
-        "17.A", "17.B", "18.A", "18.B", "19.A", "19.B", "20.A", "20.B", "21", "22",
-        "23.A", "23.B", "24.A", "24.B", "25.A", "25.B", "26", "27.A1", "27.A2", 
-        "27.A3", "27.B", "28", "29.A", "29.B", "30", "31", "32", "33", "34", "35"
-      ];
+    const BASE_SCORE = 38.1;
 
     return (
         <div className="min-h-screen bg-background text-foreground p-4 md:p-8 flex flex-col">
@@ -99,23 +92,29 @@ export default function DisplayPage() {
                             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                                 {judges.map(juriId => {
                                     const judgeScores = match.scores?.[juriId] || {};
-                                    const jurusKeys = Object.keys(judgeScores).filter(key => key.startsWith('jurus_'));
-                                    const lastJurusIndex = jurusKeys.length > 0 ? Math.max(...jurusKeys.map(k => parseInt(k.split('_')[1]))) : 0;
-                                    const lastScoreValue = lastJurusIndex > 0 ? judgeScores[`jurus_${lastJurusIndex}`] : '-';
+                                    
+                                    const jurusTotal = Object.keys(judgeScores)
+                                        .filter(key => key.startsWith('jurus_'))
+                                        .reduce((sum, key) => sum + (judgeScores[key as keyof typeof judgeScores] as number || 0), 0);
+                                        
+                                    const staminaScore = judgeScores.stamina || 0;
+                                    
+                                    const runningTotal = BASE_SCORE + jurusTotal + staminaScore;
+
+                                    const isFinished = judgeScores.finished === true;
 
                                     return (
                                         <div key={juriId} className="border rounded-lg p-4 text-center">
                                             <p className="font-bold text-lg">{juriId.replace('juri', 'Juri ')}</p>
                                             <div className="mt-2">
-                                                <p className="text-xs text-muted-foreground">Jurus Terakhir ({JURUS_NAMES[lastJurusIndex-1] || 'N/A'})</p>
-                                                <p className="font-mono text-3xl font-bold">
-                                                    {typeof lastScoreValue === 'number' ? lastScoreValue.toFixed(1) : lastScoreValue}
+                                                <p className="text-xs text-muted-foreground">Total Skor Sementara</p>
+                                                <p className="font-mono text-5xl font-bold">
+                                                    {runningTotal.toFixed(2)}
                                                 </p>
                                             </div>
-                                            <div className="mt-2">
-                                                <p className="text-xs text-muted-foreground">Total Jurus</p>
-                                                <p className="font-mono text-lg">
-                                                    {jurusKeys.length} / {JURUS_NAMES.length}
+                                            <div className="mt-4">
+                                                <p className="text-xs font-semibold">
+                                                    {isFinished ? '✅ Selesai' : 'Menilai...'}
                                                 </p>
                                             </div>
                                         </div>
