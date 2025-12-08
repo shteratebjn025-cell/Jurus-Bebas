@@ -101,7 +101,7 @@ export function MatchControls() {
 
   const handleResetOrNext = async (isNext: boolean = false) => {
     setIsSubmitting(true);
-    let nextMatchState: Match = { ...initialMatchState, numberOfJudges: numberOfJudges };
+    let nextMatchState: Match = { ...initialMatchState, numberOfJudges: numberOfJudges, participantId: null };
     let toastMessage = { title: "Papan Skor Direset", description: "Siap untuk pertandingan baru." };
 
     if (isNext && match?.participantId && participants.length > 0) {
