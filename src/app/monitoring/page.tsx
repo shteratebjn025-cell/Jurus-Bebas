@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useFirestoreDocument } from '@/lib/hooks/use-firestore';
 import type { Match, Participant, Result } from '@/lib/types';
 import { db } from '@/lib/firebase';
-import { doc, updateDoc, addDoc, collection } from 'firebase/firestore';
+import { doc, updateDoc, addDoc, collection, deleteDoc } from 'firebase/firestore';
 import { calculateMedian } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -88,6 +88,7 @@ export default function MonitoringPage() {
     const finalScoreFloat = parseFloat(finalScore.toFixed(2));
 
     try {
+        // 1. Update match status to 'finished'
         const matchRef = doc(db, "match", "current");
         await updateDoc(matchRef, {
             status: 'finished',
@@ -97,6 +98,7 @@ export default function MonitoringPage() {
             judgesTotals,
         });
 
+        // 2. Save the final result to 'results' collection
         const resultData: Result = {
           participantId: match.participantId,
           participantName: match.participantName,
@@ -110,10 +112,13 @@ export default function MonitoringPage() {
           scores: match.scores,
           createdAt: new Date(),
         }
-
         await addDoc(collection(db, 'results'), resultData);
 
-        toast({ title: 'Pertandingan Selesai', description: `Skor akhir telah dihitung: ${finalScore.toFixed(2)}` });
+        // 3. Delete the participant from the 'participants' collection
+        const participantRef = doc(db, 'participants', match.participantId);
+        await deleteDoc(participantRef);
+
+        toast({ title: 'Pertandingan Selesai', description: `Skor akhir telah dihitung dan peserta telah diarsipkan.` });
     } catch (error) {
         console.error(error);
         toast({ title: 'Error', description: 'Gagal menyelesaikan pertandingan.', variant: 'destructive' });
@@ -188,11 +193,11 @@ export default function MonitoringPage() {
                     <Terminal className="h-4 w-4" />
                     <AlertTitle>Konfirmasi Penyelesaian</AlertTitle>
                     <AlertDescription>
-                        Pastikan semua juri telah menyelesaikan penilaian sebelum menekan tombol "Selesaikan Pertandingan". Tindakan ini akan menyimpan hasil secara permanen.
+                        Pastikan semua juri telah menyelesaikan penilaian sebelum menekan tombol "Selesaikan Pertandingan". Tindakan ini akan menyimpan hasil dan mengarsipkan peserta.
                     </AlertDescription>
                 </Alert>
                 <Button onClick={handleFinishMatch} disabled={isFinishing} className="w-full mt-4" size="lg">
-                    {isFinishing ? 'Menyimpan & Menghitung...' : 'Selesaikan Pertandingan & Simpan Hasil'}
+                    {isFinishing ? 'Menyimpan & Mengarsipkan...' : 'Selesaikan Pertandingan & Simpan Hasil'}
                 </Button>
             </div>
           )}
