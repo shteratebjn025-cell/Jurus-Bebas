@@ -4,10 +4,17 @@ import { useFirestoreDocument } from '@/lib/hooks/use-firestore';
 import type { Result } from '@/lib/types';
 import Loading from '@/app/loading';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Trophy } from 'lucide-react';
+import { Trophy, Timer } from 'lucide-react';
 import { useParams } from 'next/navigation';
-import { format } from 'date-fns';
 
+function formatTime(seconds: number | null | undefined): string {
+    if (seconds === null || seconds === undefined || isNaN(seconds)) {
+      return '00:00';
+    }
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+}
 
 export default function ResultDetailPage() {
     const params = useParams();
@@ -26,8 +33,6 @@ export default function ResultDetailPage() {
             </div>
         );
     }
-    
-    const timeUsed = result.createdAt?.toDate ? format(result.createdAt.toDate(), 'HH:mm:ss dd-MM-yyyy') : 'N/A';
 
     return (
         <div className="flex items-center justify-center min-h-screen bg-background p-4">
@@ -38,10 +43,9 @@ export default function ResultDetailPage() {
                     </div>
                     <CardTitle className="font-headline text-5xl">Hasil Akhir</CardTitle>
                     <CardDescription className="text-lg">{result.participantName} - {result.participantContingent}</CardDescription>
-                    <CardDescription className="text-sm text-muted-foreground">Diselesaikan pada: {timeUsed}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6 p-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                         <div>
                             <p className="text-lg text-muted-foreground">SKOR TOTAL</p>
                             <p className="text-8xl font-bold text-primary">{result.finalScore?.toFixed(2)}</p>
@@ -49,6 +53,13 @@ export default function ResultDetailPage() {
                         <div>
                             <p className="text-lg text-muted-foreground">STANDAR DEVIASI</p>
                             <p className="text-8xl font-bold text-primary">{result.deviation?.toFixed(2)}</p>
+                        </div>
+                        <div>
+                            <p className="text-lg text-muted-foreground">WAKTU PENAMPILAN</p>
+                            <div className="flex items-center justify-center gap-2">
+                                <Timer className="h-16 w-16 text-primary" />
+                                <p className="text-8xl font-bold text-primary">{formatTime(result.timeUsedInSeconds)}</p>
+                            </div>
                         </div>
                     </div>
 

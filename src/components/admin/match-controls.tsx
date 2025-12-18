@@ -2,10 +2,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { doc, setDoc, updateDoc, addDoc, collection, serverTimestamp, deleteDoc } from "firebase/firestore";
+import { doc, setDoc, updateDoc, addDoc, collection, serverTimestamp, deleteDoc, getDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useFirestoreCollection, useFirestoreDocument } from "@/lib/hooks/use-firestore";
-import type { Participant, Match, Result } from "@/lib/types";
+import type { Participant, Match, Result, Timer } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -39,6 +39,7 @@ const initialMatchState: Omit<Match, 'id'> = {
   deviation: null,
   judgesTotals: null,
   medianScores: {},
+  timeUsedInSeconds: null,
 };
 
 export function MatchControls() {
@@ -114,37 +115,34 @@ export function MatchControls() {
 
   const handleResetOrNext = async (isNext: boolean = false) => {
     setIsSubmitting(true);
-    
-    // Always start from a clean slate, but preserve judge count
-    let nextMatchState: Match = { ...initialMatchState, numberOfJudges: numberOfJudges, participantId: null };
     let toastMessage = { title: "Papan Skor Direset", description: "Siap untuk pertandingan baru." };
 
-    if (isNext && match?.participantId && participants.length > 0) {
-        const sortedParticipants = [...participants].sort((a, b) => (a.matchNumber || 0) - (b.matchNumber || 0));
-        const currentIndex = sortedParticipants.findIndex(p => p.id === match.participantId);
-        
-        // Find the next participant that is not the current one
-        const nextParticipant = sortedParticipants[currentIndex + 1];
-        
-        if (nextParticipant) {
-          nextMatchState = {
-            ...initialMatchState,
-            participantId: nextParticipant.id,
-            participantName: nextParticipant.name,
-            participantContingent: nextParticipant.contingent,
-            numberOfJudges: numberOfJudges,
-            status: 'idle', // Ready but not running yet
-          };
-          toastMessage = { title: "Partai Selanjutnya Siap", description: `Peserta berikutnya: ${nextParticipant.name}. Tekan "Mulai" untuk bertanding.` };
-        } else {
-            // No more participants, so just reset to idle.
-          toastMessage = { title: "Kompetisi Selesai", description: "Ini adalah peserta terakhir. Papan skor direset." };
-        }
-    }
-  
     try {
-      await setDoc(doc(db, "match", "current"), nextMatchState);
-      toast(toastMessage);
+        let nextMatchState: Match = { ...initialMatchState, numberOfJudges: numberOfJudges };
+
+        if (isNext && match?.participantId && participants && participants.length > 0) {
+            const sortedParticipants = [...participants].sort((a, b) => (a.matchNumber || 0) - (b.matchNumber || 0));
+            const currentIndex = sortedParticipants.findIndex(p => p.id === match.participantId);
+            
+            if (currentIndex > -1 && currentIndex < sortedParticipants.length - 1) {
+                const nextParticipant = sortedParticipants[currentIndex + 1];
+                nextMatchState = {
+                    ...initialMatchState,
+                    participantId: nextParticipant.id,
+                    participantName: nextParticipant.name,
+                    participantContingent: nextParticipant.contingent,
+                    numberOfJudges: numberOfJudges,
+                    status: 'idle',
+                };
+                toastMessage = { title: "Partai Selanjutnya Siap", description: `Peserta berikutnya: ${nextParticipant.name}. Tekan "Mulai" untuk bertanding.` };
+            } else {
+                toastMessage = { title: "Kompetisi Selesai", description: "Ini adalah peserta terakhir. Papan skor direset." };
+            }
+        }
+      
+        await setDoc(doc(db, "match", "current"), nextMatchState);
+        toast(toastMessage);
+
     } catch (error) {
       console.error("Error setting next/reset match:", error);
       toast({ title: "Error", description: "Gagal memproses tindakan.", variant: "destructive" });
@@ -204,6 +202,41 @@ export function MatchControls() {
     const finalScoreFloat = parseFloat(finalScore.toFixed(2));
 
     try {
+        // --- Calculate Time Used ---
+        const timerRef = doc(db, "timer", "state");
+        const timerSnap = await getDoc(timerRef);
+        let timeUsedInSeconds = 0;
+        if (timerSnap.exists()) {
+            const timerState = timerSnap.data() as Timer;
+            if(timerState.isRunning && timerState.startTime) {
+                // If timer is still running when finished, calculate elapsed time
+                const elapsed = Math.floor((Date.now() - timerState.startTime) / 1000);
+                timeUsedInSeconds = Math.min(elapsed, timerState.duration);
+            } else if (!timerState.isRunning) {
+                // If timer was stopped, the remaining duration is stored
+                // So, time used is initial duration - remaining duration
+                // We need to fetch the initial duration, assuming the user doesn't change it mid-match
+                // Let's take the currently stored duration on timer as the basis
+                timeUsedInSeconds = timerState.duration - (timerState.duration > 0 ? timerState.duration : 0);
+            }
+        }
+        // A more robust way would be to snapshot the start time AND duration when match starts
+        // But for now, we'll read the final state of the timer. Let's assume the final state is what we need
+        // And if timer was running, it's duration - timeleft. Let's assume if it was stopped, duration is the remaining time.
+        let finalTimeUsed = 0;
+        if(timerSnap.exists()) {
+            const timerData = timerSnap.data() as Timer;
+            const originalDurationDoc = await getDoc(doc(db, "timer", "state"));
+            const originalDuration = originalDurationDoc.exists() ? (originalDurationDoc.data() as Timer).duration : 180;
+            if (timerData.isRunning && timerData.startTime) {
+                const elapsed = Math.floor((Date.now() - timerData.startTime) / 1000);
+                finalTimeUsed = Math.min(elapsed, timerData.duration);
+            } else {
+                finalTimeUsed = originalDuration - timerData.duration;
+            }
+        }
+
+
         const matchRef = doc(db, "match", "current");
         await updateDoc(matchRef, {
             status: 'finished',
@@ -212,6 +245,7 @@ export function MatchControls() {
             medianScores,
             judgesTotals,
             createdAt: serverTimestamp(),
+            timeUsedInSeconds: finalTimeUsed,
         });
 
         const resultData: Result = {
@@ -226,6 +260,7 @@ export function MatchControls() {
           numberOfJudges: match.numberOfJudges,
           scores: match.scores,
           createdAt: serverTimestamp(),
+          timeUsedInSeconds: finalTimeUsed,
         }
         await addDoc(collection(db, 'results'), resultData);
 

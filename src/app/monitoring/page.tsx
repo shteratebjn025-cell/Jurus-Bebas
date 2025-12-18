@@ -6,7 +6,6 @@ import Loading from '../loading';
 import { SilatScorerLogo } from '@/components/icons';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { format } from 'date-fns';
 
 const JURUS_NAMES = [
   "1.A", "1.B", "2.A", "2.B", "3.A", "3.B", "4.A", "4.B", "4.C", "4.D", 
@@ -16,6 +15,15 @@ const JURUS_NAMES = [
   "23.A", "23.B", "24.A", "24.B", "25.A", "25.B", "26", "27.A1", "27.A2", 
   "27.A3", "27.B", "28", "29.A", "29.B", "30", "31", "32", "33", "34", "35"
 ];
+
+function formatTime(seconds: number | null | undefined): string {
+    if (seconds === null || seconds === undefined || isNaN(seconds)) {
+      return '00:00';
+    }
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+}
 
 export default function MonitoringPage() {
   const { data: match, loading } = useFirestoreDocument<Match>('match', 'current');
@@ -93,8 +101,8 @@ export default function MonitoringPage() {
                         <p className='text-5xl font-bold text-primary'>{match.deviation?.toFixed(2)}</p>
                     </div>
                     <div>
-                        <p className="text-sm text-muted-foreground">WAKTU SELESAI</p>
-                        <p className='text-3xl font-bold text-primary'>{match.createdAt ? format(match.createdAt.toDate(), 'HH:mm:ss') : '-'}</p>
+                        <p className="text-sm text-muted-foreground">WAKTU PENAMPILAN</p>
+                        <p className='text-5xl font-bold text-primary'>{formatTime(match.timeUsedInSeconds)}</p>
                     </div>
                 </div>
                 <p className='text-muted-foreground'>Skor akhir telah dikalkulasi dan disimpan.</p>

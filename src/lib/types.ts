@@ -23,6 +23,7 @@ export interface Scores {
 export interface Match {
   participantId: string | null;
   participantName: string;
+
   participantContingent: string;
   numberOfJudges: 4 | 6;
   status: 'idle' | 'running' | 'finished';
@@ -32,6 +33,7 @@ export interface Match {
   judgesTotals: { judgeId: string; total: number }[] | null;
   medianScores: { [key: string]: number };
   createdAt?: any;
+  timeUsedInSeconds?: number | null;
 }
 
 export interface Timer {
@@ -54,4 +56,5 @@ export interface Result {
     numberOfJudges: 4 | 6;
     scores: Scores;
     createdAt: any;
+    timeUsedInSeconds?: number | null;
 }
