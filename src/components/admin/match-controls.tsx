@@ -105,23 +105,24 @@ export function MatchControls() {
     let toastMessage = { title: "Papan Skor Direset", description: "Siap untuk pertandingan baru." };
 
     if (isNext && match?.participantId && participants.length > 0) {
-      const sortedParticipants = [...participants].sort((a, b) => (a.matchNumber || 0) - (b.matchNumber || 0));
-      const currentIndex = sortedParticipants.findIndex(p => p.id === match.participantId);
-      const nextParticipant = sortedParticipants[currentIndex + 1];
-      
-      if (nextParticipant) {
-        nextMatchState = {
-          ...initialMatchState,
-          participantId: nextParticipant.id,
-          participantName: nextParticipant.name,
-          participantContingent: nextParticipant.contingent,
-          numberOfJudges: numberOfJudges,
-          status: 'idle', // Ready but not running yet
-        };
-        toastMessage = { title: "Partai Selanjutnya Siap", description: `Peserta berikutnya: ${nextParticipant.name}. Tekan "Mulai" untuk bertanding.` };
-      } else {
-        toastMessage = { title: "Kompetisi Selesai", description: "Ini adalah peserta terakhir." };
-      }
+        const sortedParticipants = [...participants].sort((a, b) => (a.matchNumber || 0) - (b.matchNumber || 0));
+        const currentIndex = sortedParticipants.findIndex(p => p.id === match.participantId);
+        const nextParticipant = sortedParticipants[currentIndex + 1];
+        
+        if (nextParticipant) {
+          nextMatchState = {
+            ...initialMatchState,
+            participantId: nextParticipant.id,
+            participantName: nextParticipant.name,
+            participantContingent: nextParticipant.contingent,
+            numberOfJudges: numberOfJudges,
+            status: 'idle', // Ready but not running yet
+          };
+          toastMessage = { title: "Partai Selanjutnya Siap", description: `Peserta berikutnya: ${nextParticipant.name}. Tekan "Mulai" untuk bertanding.` };
+        } else {
+            // No more participants, so just reset to idle.
+          toastMessage = { title: "Kompetisi Selesai", description: "Ini adalah peserta terakhir. Papan skor direset." };
+        }
     }
   
     try {
@@ -146,7 +147,7 @@ export function MatchControls() {
       <CardHeader>
         <CardTitle>Kontrol Pertandingan</CardTitle>
         <CardDescription>
-          {isMatchFinished ? `Pertandingan ${match?.participantName} Selesai. Siapkan partai berikutnya.` : 'Atur dan mulai pertandingan baru dari sini.'}
+          {isMatchRunning ? `Pertandingan ${match?.participantName} sedang berjalan.` : isMatchFinished ? `Pertandingan ${match?.participantName} Selesai. Lanjut ke partai berikutnya.` : 'Atur dan mulai pertandingan baru dari sini.'}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
@@ -165,7 +166,7 @@ export function MatchControls() {
               </SelectTrigger>
               <SelectContent>
                 {sortedParticipants.map((p) => (
-                  <SelectItem key={p.id} value={p.id as string}>Partai {p.matchNumber}: {p.name} - {p.contingent}</SelectItem>
+                  <SelectItem key={p.id} value={p.id as string}>Partai {p.matchNumber || '-'}: {p.name} - {p.contingent}</SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -208,8 +209,8 @@ export function MatchControls() {
               </Button>
             </div>
             {isMatchFinished && (
-                 <Button onClick={() => handleResetOrNext(true)} disabled={isSubmitting} className="w-full bg-blue-600 hover:bg-blue-700">
-                    <SkipForward className="mr-2" /> Siapkan Partai Selanjutnya
+                 <Button onClick={() => handleResetOrNext(true)} disabled={isSubmitting || isLoading} className="w-full bg-blue-600 hover:bg-blue-700">
+                    <SkipForward className="mr-2" /> Lanjut ke Partai Selanjutnya
                 </Button>
             )}
         </div>
