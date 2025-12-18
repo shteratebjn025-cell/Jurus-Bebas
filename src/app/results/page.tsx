@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useFirestoreCollection } from "@/lib/hooks/use-firestore";
 import type { Result } from "@/lib/types";
 import { db } from "@/lib/firebase";
-import { doc, deleteDoc } from "firebase/firestore";
+import { doc, deleteDoc, writeBatch, collection, getDocs } from "firebase/firestore";
 import { useToast } from "@/hooks/use-toast";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -42,6 +42,27 @@ export default function ResultsPage() {
         }
       };
 
+    const handleDeleteAllResults = async () => {
+        if (!results || results.length === 0) {
+            toast({ title: "Info", description: "Tidak ada data hasil untuk dihapus." });
+            return;
+        }
+        
+        try {
+            const batch = writeBatch(db);
+            const resultsCollection = collection(db, "results");
+            const resultsSnapshot = await getDocs(resultsCollection);
+            resultsSnapshot.forEach((doc) => {
+                batch.delete(doc.ref);
+            });
+            await batch.commit();
+            toast({ title: "Sukses", description: "Semua data hasil pertandingan telah dihapus." });
+        } catch (error) {
+            console.error("Error deleting all results: ", error);
+            toast({ title: "Error", description: "Gagal menghapus semua hasil.", variant: "destructive" });
+        }
+    };
+
     const sortedResults = results.sort((a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0));
 
     return (
@@ -54,8 +75,29 @@ export default function ResultsPage() {
             </header>
             <Card>
                 <CardHeader>
-                    <CardTitle>Riwayat Skor</CardTitle>
-                    <CardDescription>Daftar semua pertandingan yang telah selesai dinilai.</CardDescription>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <CardTitle>Riwayat Skor</CardTitle>
+                            <CardDescription>Daftar semua pertandingan yang telah selesai dinilai.</CardDescription>
+                        </div>
+                        <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                                <Button variant="destructive"><Trash2 className="mr-2 h-4 w-4" /> Hapus Semua Hasil</Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                                <AlertDialogHeader>
+                                    <AlertDialogTitle>Apakah Anda benar-benar yakin?</AlertDialogTitle>
+                                    <AlertDialogDescription>
+                                        Tindakan ini tidak dapat dibatalkan. Ini akan menghapus **semua** data hasil pertandingan secara permanen.
+                                    </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                    <AlertDialogCancel>Batal</AlertDialogCancel>
+                                    <AlertDialogAction onClick={handleDeleteAllResults} className='bg-destructive hover:bg-destructive/90'>Ya, Hapus Semua</AlertDialogAction>
+                                </AlertDialogFooter>
+                            </AlertDialogContent>
+                        </AlertDialog>
+                    </div>
                 </CardHeader>
                 <CardContent>
                     <Table>
