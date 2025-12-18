@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useFirestoreDocument } from "@/lib/hooks/use-firestore";
 import type { Timer } from "@/lib/types";
 import { db } from "@/lib/firebase";
-import { doc, updateDoc, setDoc } from "firebase/firestore";
+import { doc, updateDoc, setDoc, getDoc } from "firebase/firestore";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -18,15 +18,22 @@ export default function TimerPage() {
     const [durationInput, setDurationInput] = useState(180);
     const { toast } = useToast();
 
+    // This state will hold the original duration for the reset function
+    const [originalDuration, setOriginalDuration] = useState(180);
+
     useEffect(() => {
         if (timerState) {
-            setDurationInput(timerState.duration);
+            // Do not update durationInput if timer is running, to avoid weird UI jumps
+            if (!timerState.isRunning) {
+                setDurationInput(timerState.duration);
+            }
         }
     }, [timerState]);
 
     const handleSet = async () => {
         try {
-            await updateDoc(doc(db, "timer", "state"), { duration: durationInput, isRunning: false });
+            await setDoc(doc(db, "timer", "state"), { duration: durationInput, isRunning: false, startTime: null });
+            setOriginalDuration(durationInput); // Update original duration on set
             toast({ title: "Waktu Diatur", description: `Timer diatur ke ${durationInput} detik.` });
         } catch (error) {
             console.error(error);
@@ -36,31 +43,34 @@ export default function TimerPage() {
 
     const handleStart = async () => {
         try {
-            await updateDoc(doc(db, "timer", "state"), { isRunning: true, startTime: Date.now() });
+            const timerRef = doc(db, "timer", "state");
+            const docSnap = await getDoc(timerRef);
+            if (!docSnap.exists()) {
+                await setDoc(timerRef, { duration: durationInput, isRunning: true, startTime: Date.now() });
+                setOriginalDuration(durationInput);
+            } else {
+                 // Store the duration before starting, if it's a fresh start
+                 if (!docSnap.data().isRunning) {
+                    setOriginalDuration(docSnap.data().duration);
+                 }
+                 await updateDoc(timerRef, { isRunning: true, startTime: Date.now() });
+            }
             toast({ title: "Timer Dimulai" });
         } catch (error) {
-            // If doc doesn't exist, create it.
-            if ((error as any).code === 'not-found') {
-                 await setDoc(doc(db, "timer", "state"), { isRunning: true, startTime: Date.now(), duration: durationInput });
-                 toast({ title: "Timer Dimulai" });
-            } else {
-                console.error(error);
-                toast({ title: "Error", variant: "destructive", description: "Gagal memulai timer." });
-            }
+            console.error(error);
+            toast({ title: "Error", variant: "destructive", description: "Gagal memulai timer." });
         }
     };
 
     const handleStop = async () => {
         try {
-            // To stop, we calculate remaining time and set it as the new duration
+            const timerRef = doc(db, "timer", "state");
             if (timerState && timerState.isRunning && timerState.startTime) {
                 const elapsed = Math.floor((Date.now() - timerState.startTime) / 1000);
                 const newDuration = timerState.duration - elapsed;
-                await updateDoc(doc(db, "timer", "state"), { isRunning: false, duration: newDuration > 0 ? newDuration : 0 });
-            } else {
-                await updateDoc(doc(db, "timer", "state"), { isRunning: false });
+                await updateDoc(timerRef, { isRunning: false, duration: newDuration > 0 ? newDuration : 0, startTime: null });
+                toast({ title: "Timer Dihentikan" });
             }
-            toast({ title: "Timer Dihentikan" });
         } catch (error) {
             console.error(error);
             toast({ title: "Error", variant: "destructive", description: "Gagal menghentikan timer." });
@@ -69,7 +79,7 @@ export default function TimerPage() {
     
     const handleReset = async () => {
         try {
-            await updateDoc(doc(db, "timer", "state"), { isRunning: false, duration: durationInput });
+            await updateDoc(doc(db, "timer", "state"), { isRunning: false, duration: originalDuration, startTime: null });
             toast({ title: "Timer Direset" });
         } catch (error) {
             console.error(error);
@@ -99,8 +109,9 @@ export default function TimerPage() {
                             type="number" 
                             value={durationInput || 0} 
                             onChange={(e) => setDurationInput(parseInt(e.target.value) || 0)}
+                            disabled={timerState?.isRunning}
                         />
-                         <Button onClick={handleSet} variant="outline" className="w-full">Atur Durasi</Button>
+                         <Button onClick={handleSet} variant="outline" className="w-full" disabled={timerState?.isRunning}>Atur Durasi</Button>
                     </div>
 
                     <div className="grid grid-cols-3 gap-2">
@@ -120,7 +131,7 @@ export default function TimerPage() {
                         </Button>
                         <Button 
                             onClick={handleReset}
-                            disabled={loading}
+                            disabled={loading || timerState?.isRunning}
                             variant="secondary"
                         >
                             <RefreshCw className="mr-2 h-4 w-4" /> Reset
@@ -131,3 +142,5 @@ export default function TimerPage() {
         </div>
     );
 }
+
+    

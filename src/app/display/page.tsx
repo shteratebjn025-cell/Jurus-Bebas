@@ -5,9 +5,17 @@ import type { Match } from '@/lib/types';
 import Loading from '../loading';
 import { SilatScorerLogo } from '@/components/icons';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Trophy } from 'lucide-react';
+import { Trophy, Timer } from 'lucide-react';
 import { TimerDisplay } from '@/components/timer-display';
 
+function formatTime(seconds: number | null | undefined): string {
+    if (seconds === null || seconds === undefined || isNaN(seconds)) {
+      return '00:00';
+    }
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+}
 
 export default function DisplayPage() {
     const { data: match, loading } = useFirestoreDocument<Match>('match', 'current');
@@ -38,7 +46,7 @@ export default function DisplayPage() {
                         <CardDescription className="text-lg">{match.participantName} - {match.participantContingent}</CardDescription>
                     </CardHeader>
                     <CardContent className="space-y-6 p-6">
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                             <div>
                                 <p className="text-lg text-muted-foreground">SKOR TOTAL</p>
                                 <p className="text-8xl font-bold text-primary">{match.finalScore?.toFixed(2)}</p>
@@ -46,6 +54,10 @@ export default function DisplayPage() {
                             <div>
                                 <p className="text-lg text-muted-foreground">DEVIASI</p>
                                 <p className="text-8xl font-bold text-primary">{match.deviation?.toFixed(2)}</p>
+                            </div>
+                             <div>
+                                <p className="text-lg text-muted-foreground">WAKTU</p>
+                                <p className="text-8xl font-bold text-primary">{formatTime(match.timeUsedInSeconds)}</p>
                             </div>
                         </div>
 
@@ -128,3 +140,5 @@ export default function DisplayPage() {
         </div>
     );
 }
+
+    

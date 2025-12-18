@@ -42,6 +42,9 @@ const initialMatchState: Omit<Match, 'id'> = {
   timeUsedInSeconds: null,
 };
 
+// Store original timer duration when a match starts
+let originalTimerDuration = 180;
+
 export function MatchControls() {
   const { data: participants, loading: participantsLoading } = useFirestoreCollection<Participant>('participants');
   const { data: match, loading: matchLoading } = useFirestoreDocument<Match>('match', 'current');
@@ -94,6 +97,13 @@ export function MatchControls() {
         return;
       }
       
+      // Get current timer duration to store it as the original duration for this match
+      const timerRef = doc(db, "timer", "state");
+      const timerSnap = await getDoc(timerRef);
+      if (timerSnap.exists()) {
+        originalTimerDuration = timerSnap.data().duration;
+      }
+
       const newMatchState: Match = {
         ...initialMatchState,
         participantId: participant.id,
@@ -124,8 +134,9 @@ export function MatchControls() {
             const sortedParticipants = [...participants].sort((a, b) => (a.matchNumber || 0) - (b.matchNumber || 0));
             const currentIndex = sortedParticipants.findIndex(p => p.id === match.participantId);
             
-            if (currentIndex > -1 && currentIndex < sortedParticipants.length - 1) {
-                const nextParticipant = sortedParticipants[currentIndex + 1];
+            const nextParticipant = sortedParticipants.find((p, index) => index > currentIndex);
+
+            if (nextParticipant) {
                 nextMatchState = {
                     ...initialMatchState,
                     participantId: nextParticipant.id,
@@ -207,18 +218,15 @@ export function MatchControls() {
         const timerRef = doc(db, "timer", "state");
         const timerSnap = await getDoc(timerRef);
         let timeUsedInSeconds = 0;
+
         if (timerSnap.exists()) {
             const timerState = timerSnap.data() as Timer;
-            const originalDuration = (await getDoc(doc(db, "timer", "state"))).data()?.duration || 180;
-            
-            if (timerState.isRunning && timerState.startTime) {
-                const elapsed = Math.floor((Date.now() - timerState.startTime) / 1000);
-                timeUsedInSeconds = Math.min(elapsed, timerState.duration);
-            } else if (!timerState.isRunning && timerState.startTime) {
-                // If timer was stopped, duration is the remaining time. Time used is original - remaining.
-                timeUsedInSeconds = originalDuration - timerState.duration;
+            const remainingDuration = timerState.duration;
+
+            if (originalTimerDuration > remainingDuration) {
+                timeUsedInSeconds = originalTimerDuration - remainingDuration;
             }
-             // if timer was never started, timeUsedInSeconds remains 0
+             // If timer was never started or reset without starting, used time is 0.
         }
 
         const matchRef = doc(db, "match", "current");
@@ -350,3 +358,5 @@ export function MatchControls() {
     </Card>
   );
 }
+
+    
