@@ -5,7 +5,7 @@ import { useFirestoreDocument } from '@/lib/hooks/use-firestore';
 import type { Match, Participant, Result } from '@/lib/types';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, addDoc, collection, deleteDoc } from 'firebase/firestore';
-import { calculateMedian } from '@/lib/utils';
+import { calculateMedian, calculateStandardDeviation } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -80,9 +80,9 @@ export default function MonitoringPage() {
         }
     });
 
-    // Calculate deviation
+    // Calculate standard deviation
     const allJudgeTotals = judgesTotals.map(j => j.total);
-    const deviation = allJudgeTotals.length > 0 ? Math.max(...allJudgeTotals) - Math.min(...allJudgeTotals) : 0;
+    const deviation = calculateStandardDeviation(allJudgeTotals);
     
     const finalDeviation = parseFloat(deviation.toFixed(2));
     const finalScoreFloat = parseFloat(finalScore.toFixed(2));
