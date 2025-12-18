@@ -2,7 +2,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { doc, setDoc, updateDoc, addDoc, collection, deleteDoc } from "firebase/firestore";
+import { doc, setDoc, updateDoc, addDoc, collection, serverTimestamp, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useFirestoreCollection, useFirestoreDocument } from "@/lib/hooks/use-firestore";
 import type { Participant, Match, Result } from "@/lib/types";
@@ -14,7 +14,7 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Play, RefreshCw, SkipForward, Save } from "lucide-react";
+import { Terminal, Play, RefreshCw, Save, SkipForward } from "lucide-react";
 import { calculateMedian, calculateStandardDeviation } from "@/lib/utils";
 
 const JURUS_NAMES = [
@@ -114,12 +114,16 @@ export function MatchControls() {
 
   const handleResetOrNext = async (isNext: boolean = false) => {
     setIsSubmitting(true);
+    
+    // Always start from a clean slate, but preserve judge count
     let nextMatchState: Match = { ...initialMatchState, numberOfJudges: numberOfJudges, participantId: null };
     let toastMessage = { title: "Papan Skor Direset", description: "Siap untuk pertandingan baru." };
 
     if (isNext && match?.participantId && participants.length > 0) {
         const sortedParticipants = [...participants].sort((a, b) => (a.matchNumber || 0) - (b.matchNumber || 0));
         const currentIndex = sortedParticipants.findIndex(p => p.id === match.participantId);
+        
+        // Find the next participant that is not the current one
         const nextParticipant = sortedParticipants[currentIndex + 1];
         
         if (nextParticipant) {
@@ -207,6 +211,7 @@ export function MatchControls() {
             deviation: finalDeviation,
             medianScores,
             judgesTotals,
+            createdAt: serverTimestamp(),
         });
 
         const resultData: Result = {
@@ -220,7 +225,7 @@ export function MatchControls() {
           medianScores: medianScores,
           numberOfJudges: match.numberOfJudges,
           scores: match.scores,
-          createdAt: new Date(),
+          createdAt: serverTimestamp(),
         }
         await addDoc(collection(db, 'results'), resultData);
 
@@ -262,7 +267,7 @@ export function MatchControls() {
             <Select 
               value={selectedParticipantId || ""} 
               onValueChange={setSelectedParticipantId} 
-              disabled={isSubmitting || isMatchRunning}
+              disabled={isSubmitting || isMatchRunning || isMatchFinished}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Pilih seorang peserta" />

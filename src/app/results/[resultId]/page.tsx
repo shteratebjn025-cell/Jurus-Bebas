@@ -6,6 +6,8 @@ import Loading from '@/app/loading';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Trophy } from 'lucide-react';
 import { useParams } from 'next/navigation';
+import { format } from 'date-fns';
+
 
 export default function ResultDetailPage() {
     const params = useParams();
@@ -25,6 +27,8 @@ export default function ResultDetailPage() {
         );
     }
     
+    const timeUsed = result.createdAt?.toDate ? format(result.createdAt.toDate(), 'HH:mm:ss dd-MM-yyyy') : 'N/A';
+
     return (
         <div className="flex items-center justify-center min-h-screen bg-background p-4">
              <Card className="w-full max-w-4xl text-center shadow-2xl">
@@ -34,6 +38,7 @@ export default function ResultDetailPage() {
                     </div>
                     <CardTitle className="font-headline text-5xl">Hasil Akhir</CardTitle>
                     <CardDescription className="text-lg">{result.participantName} - {result.participantContingent}</CardDescription>
+                    <CardDescription className="text-sm text-muted-foreground">Diselesaikan pada: {timeUsed}</CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-6 p-6">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -42,7 +47,7 @@ export default function ResultDetailPage() {
                             <p className="text-8xl font-bold text-primary">{result.finalScore?.toFixed(2)}</p>
                         </div>
                         <div>
-                            <p className="text-lg text-muted-foreground">DEVIASI</p>
+                            <p className="text-lg text-muted-foreground">STANDAR DEVIASI</p>
                             <p className="text-8xl font-bold text-primary">{result.deviation?.toFixed(2)}</p>
                         </div>
                     </div>

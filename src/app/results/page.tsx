@@ -42,7 +42,7 @@ export default function ResultsPage() {
         }
       };
 
-    const sortedResults = results.sort((a, b) => b.createdAt.toMillis() - a.createdAt.toMillis());
+    const sortedResults = results.sort((a, b) => (b.createdAt?.toMillis() ?? 0) - (a.createdAt?.toMillis() ?? 0));
 
     return (
         <div className="container mx-auto p-4 md:p-8">

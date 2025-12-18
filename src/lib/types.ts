@@ -31,6 +31,7 @@ export interface Match {
   deviation: number | null;
   judgesTotals: { judgeId: string; total: number }[] | null;
   medianScores: { [key: string]: number };
+  createdAt?: any;
 }
 
 export interface Timer {
@@ -52,5 +53,5 @@ export interface Result {
     medianScores: { [key: string]: number };
     numberOfJudges: 4 | 6;
     scores: Scores;
-    createdAt: Date;
+    createdAt: any;
 }

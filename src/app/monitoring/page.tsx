@@ -6,6 +6,7 @@ import Loading from '../loading';
 import { SilatScorerLogo } from '@/components/icons';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { format } from 'date-fns';
 
 const JURUS_NAMES = [
   "1.A", "1.B", "2.A", "2.B", "3.A", "3.B", "4.A", "4.B", "4.C", "4.D", 
@@ -82,7 +83,20 @@ export default function MonitoringPage() {
           {match.status === 'finished' && (
             <div className='mt-6 text-center'>
                 <h2 className='font-headline text-2xl'>Pertandingan Selesai</h2>
-                <p className='text-5xl font-bold text-primary my-2'>{match.finalScore?.toFixed(2)}</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 my-4">
+                    <div>
+                        <p className="text-sm text-muted-foreground">SKOR AKHIR</p>
+                        <p className='text-5xl font-bold text-primary'>{match.finalScore?.toFixed(2)}</p>
+                    </div>
+                    <div>
+                        <p className="text-sm text-muted-foreground">STANDAR DEVIASI</p>
+                        <p className='text-5xl font-bold text-primary'>{match.deviation?.toFixed(2)}</p>
+                    </div>
+                    <div>
+                        <p className="text-sm text-muted-foreground">WAKTU SELESAI</p>
+                        <p className='text-3xl font-bold text-primary'>{match.createdAt ? format(match.createdAt.toDate(), 'HH:mm:ss') : '-'}</p>
+                    </div>
+                </div>
                 <p className='text-muted-foreground'>Skor akhir telah dikalkulasi dan disimpan.</p>
             </div>
           )}
