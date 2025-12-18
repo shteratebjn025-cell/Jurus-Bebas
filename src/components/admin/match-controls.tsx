@@ -136,7 +136,8 @@ export function MatchControls() {
                 };
                 toastMessage = { title: "Partai Selanjutnya Siap", description: `Peserta berikutnya: ${nextParticipant.name}. Tekan "Mulai" untuk bertanding.` };
             } else {
-                toastMessage = { title: "Kompetisi Selesai", description: "Ini adalah peserta terakhir. Papan skor direset." };
+                 nextMatchState = { ...initialMatchState, numberOfJudges: numberOfJudges, status: 'idle', participantId: null };
+                 toastMessage = { title: "Kompetisi Selesai", description: "Ini adalah peserta terakhir. Papan skor direset." };
             }
         }
       
@@ -208,34 +209,17 @@ export function MatchControls() {
         let timeUsedInSeconds = 0;
         if (timerSnap.exists()) {
             const timerState = timerSnap.data() as Timer;
-            if(timerState.isRunning && timerState.startTime) {
-                // If timer is still running when finished, calculate elapsed time
+            const originalDuration = (await getDoc(doc(db, "timer", "state"))).data()?.duration || 180;
+            
+            if (timerState.isRunning && timerState.startTime) {
                 const elapsed = Math.floor((Date.now() - timerState.startTime) / 1000);
                 timeUsedInSeconds = Math.min(elapsed, timerState.duration);
-            } else if (!timerState.isRunning) {
-                // If timer was stopped, the remaining duration is stored
-                // So, time used is initial duration - remaining duration
-                // We need to fetch the initial duration, assuming the user doesn't change it mid-match
-                // Let's take the currently stored duration on timer as the basis
-                timeUsedInSeconds = timerState.duration - (timerState.duration > 0 ? timerState.duration : 0);
+            } else if (!timerState.isRunning && timerState.startTime) {
+                // If timer was stopped, duration is the remaining time. Time used is original - remaining.
+                timeUsedInSeconds = originalDuration - timerState.duration;
             }
+             // if timer was never started, timeUsedInSeconds remains 0
         }
-        // A more robust way would be to snapshot the start time AND duration when match starts
-        // But for now, we'll read the final state of the timer. Let's assume the final state is what we need
-        // And if timer was running, it's duration - timeleft. Let's assume if it was stopped, duration is the remaining time.
-        let finalTimeUsed = 0;
-        if(timerSnap.exists()) {
-            const timerData = timerSnap.data() as Timer;
-            const originalDurationDoc = await getDoc(doc(db, "timer", "state"));
-            const originalDuration = originalDurationDoc.exists() ? (originalDurationDoc.data() as Timer).duration : 180;
-            if (timerData.isRunning && timerData.startTime) {
-                const elapsed = Math.floor((Date.now() - timerData.startTime) / 1000);
-                finalTimeUsed = Math.min(elapsed, timerData.duration);
-            } else {
-                finalTimeUsed = originalDuration - timerData.duration;
-            }
-        }
-
 
         const matchRef = doc(db, "match", "current");
         await updateDoc(matchRef, {
@@ -244,8 +228,7 @@ export function MatchControls() {
             deviation: finalDeviation,
             medianScores,
             judgesTotals,
-            createdAt: serverTimestamp(),
-            timeUsedInSeconds: finalTimeUsed,
+            timeUsedInSeconds: timeUsedInSeconds,
         });
 
         const resultData: Result = {
@@ -260,7 +243,7 @@ export function MatchControls() {
           numberOfJudges: match.numberOfJudges,
           scores: match.scores,
           createdAt: serverTimestamp(),
-          timeUsedInSeconds: finalTimeUsed,
+          timeUsedInSeconds: timeUsedInSeconds,
         }
         await addDoc(collection(db, 'results'), resultData);
 
