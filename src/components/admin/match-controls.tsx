@@ -2,10 +2,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, setDoc, updateDoc, addDoc, collection, deleteDoc } from "firebase/firestore";
 import { db } from "@/lib/firebase";
 import { useFirestoreCollection, useFirestoreDocument } from "@/lib/hooks/use-firestore";
-import type { Participant, Match } from "@/lib/types";
+import type { Participant, Match, Result } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -14,9 +14,21 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Terminal, Play, RefreshCw, SkipForward } from "lucide-react";
+import { Terminal, Play, RefreshCw, SkipForward, Save } from "lucide-react";
+import { calculateMedian, calculateStandardDeviation } from "@/lib/utils";
 
-const initialMatchState: Match = {
+const JURUS_NAMES = [
+    "1.A", "1.B", "2.A", "2.B", "3.A", "3.B", "4.A", "4.B", "4.C", "4.D", 
+    "5", "6", "7.A", "7.B", "8.A", "8.B", "8.C", "9", "10.A", "10.B",
+    "11.A", "11.B", "12", "13", "14.A", "14.B", "15", "16.A1", "16.A2", "16.B",
+    "17.A", "17.B", "18.A", "18.B", "19.A", "19.B", "20.A", "20.B", "21", "22",
+    "23.A", "23.B", "24.A", "24.B", "25.A", "25.B", "26", "27.A1", "27.A2", 
+    "27.A3", "27.B", "28", "29.A", "29.B", "30", "31", "32", "33", "34", "35"
+  ];
+  
+const BASE_SCORE = 38.1;
+
+const initialMatchState: Omit<Match, 'id'> = {
   participantId: null,
   participantName: "",
   participantContingent: "",
@@ -32,10 +44,12 @@ const initialMatchState: Match = {
 export function MatchControls() {
   const { data: participants, loading: participantsLoading } = useFirestoreCollection<Participant>('participants');
   const { data: match, loading: matchLoading } = useFirestoreDocument<Match>('match', 'current');
+  const { data: participant } = useFirestoreDocument<Participant>('participants', match?.participantId || 'dummy_id');
   
   const [selectedParticipantId, setSelectedParticipantId] = useState<string | null>(null);
   const [numberOfJudges, setNumberOfJudges] = useState<4 | 6>(6);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isFinishing, setIsFinishing] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -49,7 +63,6 @@ export function MatchControls() {
     }
   }, []);
 
-  // Sync local selectedParticipantId with Firestore match data
   useEffect(() => {
     if (match) {
         setSelectedParticipantId(match.participantId);
@@ -135,12 +148,102 @@ export function MatchControls() {
       setIsSubmitting(false);
     }
   };
+  
+  const handleFinishMatch = async () => {
+    if (!match || !participant || !match.participantId) {
+        toast({ title: 'Error', description: 'Data pertandingan atau peserta tidak lengkap untuk menyimpan hasil.', variant: 'destructive' });
+        return;
+    }
+    setIsFinishing(true);
+
+    const judges = Object.keys(match.scores).filter(id => match.scores[id]?.finished);
+    if (judges.length < match.numberOfJudges) {
+        toast({ title: 'Peringatan', description: 'Belum semua juri menyelesaikan penilaian.', variant: 'destructive' });
+        setIsFinishing(false);
+        return;
+    }
+
+    const medianScores: { [key: string]: number } = {};
+    const judgesTotals: { judgeId: string; total: number }[] = [];
+    
+    JURUS_NAMES.forEach((_, index) => {
+        const jurusKey = `jurus_${index + 1}`;
+        const jurusScores = judges.map(juriId => match.scores[juriId]?.[jurusKey]).filter(s => s !== undefined) as number[];
+        medianScores[jurusKey] = calculateMedian(jurusScores);
+    });
+
+    const staminaScores = judges.map(juriId => match.scores[juriId]?.stamina).filter(s => s !== undefined) as number[];
+    medianScores['stamina'] = calculateMedian(staminaScores);
+
+    const totalJurusScore = Object.keys(medianScores)
+        .filter(key => key !== 'stamina')
+        .reduce((sum, key) => sum + (medianScores[key] || 0), 0);
+        
+    const finalScore = BASE_SCORE + totalJurusScore + (medianScores['stamina'] || 0);
+
+    judges.forEach(juriId => {
+        const scores = match.scores[juriId];
+        if (scores) {
+            let total = 0;
+            JURUS_NAMES.forEach((_, index) => {
+                total += scores[`jurus_${index + 1}`] || 0;
+            });
+            total += scores.stamina || 0;
+            judgesTotals.push({ judgeId: juriId, total: parseFloat((BASE_SCORE + total).toFixed(2)) });
+        }
+    });
+
+    const allJudgeTotals = judgesTotals.map(j => j.total);
+    const deviation = calculateStandardDeviation(allJudgeTotals);
+    
+    const finalDeviation = parseFloat(deviation.toFixed(2));
+    const finalScoreFloat = parseFloat(finalScore.toFixed(2));
+
+    try {
+        const matchRef = doc(db, "match", "current");
+        await updateDoc(matchRef, {
+            status: 'finished',
+            finalScore: finalScoreFloat,
+            deviation: finalDeviation,
+            medianScores,
+            judgesTotals,
+        });
+
+        const resultData: Result = {
+          participantId: match.participantId,
+          participantName: match.participantName,
+          participantContingent: match.participantContingent,
+          ageCategory: participant.ageCategory,
+          finalScore: finalScoreFloat,
+          deviation: finalDeviation,
+          judgesTotals: judgesTotals,
+          medianScores: medianScores,
+          numberOfJudges: match.numberOfJudges,
+          scores: match.scores,
+          createdAt: new Date(),
+        }
+        await addDoc(collection(db, 'results'), resultData);
+
+        const participantRef = doc(db, 'participants', match.participantId);
+        await deleteDoc(participantRef);
+
+        toast({ title: 'Pertandingan Selesai', description: `Skor akhir telah dihitung dan peserta telah diarsipkan.` });
+    } catch (error) {
+        console.error(error);
+        toast({ title: 'Error', description: 'Gagal menyelesaikan pertandingan.', variant: 'destructive' });
+    } finally {
+        setIsFinishing(false);
+    }
+  };
 
   const isLoading = participantsLoading || matchLoading;
   const isMatchRunning = match?.status === 'running';
   const isMatchFinished = match?.status === 'finished';
 
   const sortedParticipants = participants ? [...participants].sort((a, b) => (a.matchNumber || 0) - (b.matchNumber || 0)) : [];
+  
+  const finishedJudgesCount = match?.scores ? Object.values(match.scores).filter(s => s.finished).length : 0;
+
 
   return (
     <Card>
@@ -195,19 +298,25 @@ export function MatchControls() {
           <Terminal className="h-4 w-4" />
           <AlertTitle>Informasi</AlertTitle>
           <AlertDescription>
-            {isMatchRunning ? 'Pertandingan sedang berjalan. Gunakan tombol "Reset" untuk menghentikan dan menghapus data saat ini.' : 'Pilihan Anda akan tersimpan otomatis. Tekan "Mulai" jika sudah siap.'}
+            {isMatchRunning ? `Pertandingan sedang berjalan. ${finishedJudgesCount}/${numberOfJudges} juri telah selesai.` : 'Pilihan Anda akan tersimpan otomatis. Tekan "Mulai" jika sudah siap.'}
           </AlertDescription>
         </Alert>
 
         <div className="flex flex-col gap-4">
-           <div className="flex gap-4">
-              <Button onClick={handleStartMatch} disabled={isLoading || isSubmitting || !selectedParticipantId || isMatchRunning || isMatchFinished} className="flex-1 bg-green-600 hover:bg-green-700">
+           <div className="grid grid-cols-2 gap-4">
+              <Button onClick={handleStartMatch} disabled={isLoading || isSubmitting || !selectedParticipantId || isMatchRunning || isMatchFinished} className="bg-green-600 hover:bg-green-700">
                 <Play className="mr-2" /> {isSubmitting ? "Memulai..." : "Mulai Pertandingan"}
               </Button>
-              <Button onClick={() => handleResetOrNext(false)} variant="destructive" disabled={isSubmitting || isLoading} className="flex-1">
+              <Button onClick={() => handleResetOrNext(false)} variant="destructive" disabled={isSubmitting || isLoading}>
                 <RefreshCw className="mr-2" /> {isSubmitting ? "Mereset..." : "Reset Papan Skor"}
               </Button>
             </div>
+            {isMatchRunning && (
+                <Button onClick={handleFinishMatch} disabled={isFinishing} className="w-full" size="lg">
+                    <Save className="mr-2 h-4 w-4" />
+                    {isFinishing ? 'Menyimpan...' : `Selesaikan Pertandingan & Simpan (${finishedJudgesCount}/${numberOfJudges})`}
+                </Button>
+            )}
             {isMatchFinished && (
                  <Button onClick={() => handleResetOrNext(true)} disabled={isSubmitting || isLoading} className="w-full bg-blue-600 hover:bg-blue-700">
                     <SkipForward className="mr-2" /> Lanjut ke Partai Selanjutnya
